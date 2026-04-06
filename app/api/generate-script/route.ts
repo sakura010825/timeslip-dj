@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const client = new Anthropic();
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY || '');
 
 function getYearContext(year: number): string {
   if (year >= 1980 && year <= 1984) return "ウォークマン全盛期、ファミコン登場、ニューミュージックブーム、バブル前夜の空気感などを盛り込むこと。";
@@ -23,6 +23,11 @@ export async function POST(req: Request) {
     const { year, month } = await req.json();
     const yearContext = getYearContext(Number(year));
 
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.0-flash',
+      generationConfig: { responseMimeType: 'application/json' },
+    });
+
     const prompt = `あなたは1980年代から2020年代の音楽に精通したラジオディレクター兼DJです。
 【${year}年${month}月】に放送された「30分番組」の完全な構成案と台本を作成してください。
 
@@ -42,8 +47,7 @@ export async function POST(req: Request) {
       "script": "台本内容...",
       "songTitle": "曲名",
       "artistName": "アーティスト名"
-    },
-    ...残り3つ分
+    }
   ]
 }
 
@@ -58,20 +62,12 @@ export async function POST(req: Request) {
 - 記号（※、→、…など）は使わない。代わりに読める言葉で表現する
 - 英単語はそのまま使わず、カタカナか日本語に置き換える`;
 
-    const message = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 4096,
-      messages: [{ role: 'user', content: prompt }],
-    });
-
-    const text = message.content[0].type === 'text' ? message.content[0].text : '';
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('JSON not found in response');
-
-    return NextResponse.json(JSON.parse(jsonMatch[0]));
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+    return NextResponse.json(JSON.parse(text));
 
   } catch (error) {
-    console.error('Claude API Error:', error);
+    console.error('Gemini API Error:', error);
     return NextResponse.json({ error: '番組構成の作成に失敗しました。' }, { status: 500 });
   }
 }

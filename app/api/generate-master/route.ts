@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const client = new Anthropic();
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY || '');
 
 const CATEGORY_INFO: Record<string, string> = {
   'MUSIC':          '音楽（国内・海外のヒット曲・アルバム・アーティスト）',
@@ -43,6 +43,11 @@ export async function POST(req: Request) {
       .map(c => `- ${c}：${CATEGORY_INFO[c] ?? c}`)
       .join('\n');
 
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.0-flash',
+      generationConfig: { responseMimeType: 'application/json' },
+    });
+
     const prompt = `あなたは1980〜2000年代の日本の文化・エンタメに精通したアーキビストです。
 ${year}年${seasonJP}（${months}）に話題になったコンテンツを以下のカテゴリから各5つずつ選んでください。
 
@@ -80,22 +85,14 @@ ${categoryDescriptions}
   ]
 }
 
-JSONのみを出力してください。マークダウンのコードブロックは使わないこと。`;
+必ず各カテゴリ5エントリーずつ生成すること。JSONのみを出力してください。`;
 
-    const message = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 8000,
-      messages: [{ role: 'user', content: prompt }],
-    });
-
-    const text = message.content[0].type === 'text' ? message.content[0].text : '';
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('JSON not found in response');
-
-    return NextResponse.json(JSON.parse(jsonMatch[0]));
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+    return NextResponse.json(JSON.parse(text));
 
   } catch (error) {
-    console.error('Generate master error:', error);
+    console.error('Gemini API Error:', error);
     return NextResponse.json({ error: 'コンテンツの生成に失敗しました' }, { status: 500 });
   }
 }
