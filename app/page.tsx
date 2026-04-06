@@ -140,25 +140,44 @@ export default function Home() {
     }
   };
 
+  const fadeOutAndStop = (onComplete: () => void) => {
+    const player = playerRef.current;
+    if (!player) { onComplete(); return; }
+
+    const FADE_DURATION = 2000; // ms
+    const STEPS = 20;
+    const interval = FADE_DURATION / STEPS;
+    let step = 0;
+    const initialVolume = player.getVolume?.() ?? 100;
+
+    const timer = setInterval(() => {
+      step++;
+      const newVolume = Math.max(0, initialVolume * (1 - step / STEPS));
+      try { player.setVolume(newVolume); } catch { /* ignore */ }
+      if (step >= STEPS) {
+        clearInterval(timer);
+        try { player.stopVideo(); } catch { /* ignore */ }
+        try { player.setVolume(initialVolume); } catch { /* ignore */ }
+        onComplete();
+      }
+    }, interval);
+  };
+
   const onMusicEnd = () => {
     if (previewTimerRef.current) {
       clearTimeout(previewTimerRef.current);
       previewTimerRef.current = null;
     }
-    if (playerRef.current) {
-      playerRef.current.stopVideo();
-    }
-    setCurrentVideoId(null);
-    if (currentIndex < segments.length - 1) {
-      const nextIdx = currentIndex + 1;
-      setCurrentIndex(nextIdx); // ここでインデックスを更新
-      
-      setTimeout(() => {
-        playVoice(nextIdx);
-      }, 3000);
-    } else {
-      alert('本日の放送はすべて終了しました。ご視聴ありがとうございました！');
-    }
+    fadeOutAndStop(() => {
+      setCurrentVideoId(null);
+      if (currentIndex < segments.length - 1) {
+        const nextIdx = currentIndex + 1;
+        setCurrentIndex(nextIdx);
+        setTimeout(() => { playVoice(nextIdx); }, 1500);
+      } else {
+        alert('本日の放送はすべて終了しました。ご視聴ありがとうございました！');
+      }
+    });
   };
 
   const currentSegment = segments[currentIndex];
