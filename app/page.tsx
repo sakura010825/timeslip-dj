@@ -15,6 +15,61 @@ export default function Home() {
 
   const [mode, setMode] = useState<'youtube' | 'full'>('youtube');
 
+  // コンテンツ生成タブ
+  const [activeTab, setActiveTab] = useState<'program' | 'content'>('program');
+  const [contentYear, setContentYear] = useState('1995');
+  const [contentSeason, setContentSeason] = useState('autumn');
+  const [masterData, setMasterData] = useState<any>(null);
+  const [contentProgress, setContentProgress] = useState(0); // 0=idle, 1-4=batch
+  const [isGeneratingContent, setIsGeneratingContent] = useState(false);
+
+  const CATEGORY_BATCHES = [
+    ['MUSIC', 'TV-DRAMA', 'MOVIE-ANIME'],
+    ['GAME', 'DIGITAL-GADGET', 'TOY'],
+    ['NEWS', 'CM-ADS', 'FOOD-DRINK'],
+    ['SPORTS', 'FASHION', 'CULTURE-SLANG'],
+  ];
+
+  const generateMaster = async () => {
+    setIsGeneratingContent(true);
+    setMasterData(null);
+    setContentProgress(0);
+    const allEntries: any[] = [];
+    let meta: any = null;
+    try {
+      for (let i = 0; i < CATEGORY_BATCHES.length; i++) {
+        setContentProgress(i + 1);
+        const res = await fetch('/api/generate-master', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ year: contentYear, season: contentSeason, categories: CATEGORY_BATCHES[i] }),
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        if (!meta) meta = data.metadata;
+        allEntries.push(...(data.entries ?? []));
+      }
+      setMasterData({ metadata: meta, entries: allEntries });
+    } catch (e) {
+      console.error(e);
+      alert('コンテンツの生成に失敗しました。');
+    } finally {
+      setIsGeneratingContent(false);
+      setContentProgress(0);
+    }
+  };
+
+  const downloadMaster = () => {
+    if (!masterData) return;
+    const blob = new Blob([JSON.stringify(masterData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `master_${contentYear}_${contentSeason}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const bgmRef = useRef<HTMLAudioElement | null>(null);
   const playerRef = useRef<any>(null);
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -205,10 +260,29 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-black text-gray-100 p-8 font-sans">
       <div className="max-w-3xl mx-auto text-center">
-        <header className="mb-12">
+        <header className="mb-8">
           <h1 className="text-5xl font-black mb-2 text-yellow-500 tracking-tighter italic">TIME SLIP DJ</h1>
           <p className="text-gray-400 font-mono tracking-widest text-sm">30-MINUTE RETRO BROADCAST SYSTEM</p>
         </header>
+
+        {/* タブナビゲーション */}
+        <div className="flex gap-1 bg-gray-900 rounded-xl p-1 mb-8 border border-gray-800">
+          <button
+            onClick={() => setActiveTab('program')}
+            className={`flex-1 py-3 rounded-lg font-black text-sm transition-all ${activeTab === 'program' ? 'bg-yellow-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
+          >
+            番組生成
+          </button>
+          <button
+            onClick={() => setActiveTab('content')}
+            className={`flex-1 py-3 rounded-lg font-black text-sm transition-all ${activeTab === 'content' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
+          >
+            コンテンツ生成（60本）
+          </button>
+        </div>
+
+        {/* 番組生成タブ */}
+        {activeTab === 'program' && (<>
 
         {/* 設定エリア */}
         <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 mb-10 inline-block shadow-2xl">
@@ -316,6 +390,108 @@ export default function Home() {
 
           </div>
         )}
+
+        </>)}
+
+        {/* コンテンツ生成タブ */}
+        {activeTab === 'content' && (
+          <div className="text-left">
+            {/* 設定エリア */}
+            <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 mb-8 shadow-2xl">
+              <div className="flex gap-4 items-center flex-wrap">
+                <select
+                  value={contentYear}
+                  onChange={(e) => setContentYear(e.target.value)}
+                  className="bg-gray-800 p-3 rounded-lg border border-gray-700 text-xl text-yellow-500"
+                >
+                  {Array.from({ length: 46 }, (_, i) => 1980 + i).map(y => (
+                    <option key={y} value={y}>{y}年</option>
+                  ))}
+                </select>
+                <select
+                  value={contentSeason}
+                  onChange={(e) => setContentSeason(e.target.value)}
+                  className="bg-gray-800 p-3 rounded-lg border border-gray-700 text-xl text-yellow-500"
+                >
+                  <option value="spring">春（3〜5月）</option>
+                  <option value="summer">夏（6〜8月）</option>
+                  <option value="autumn">秋（9〜11月）</option>
+                  <option value="winter">冬（12〜2月）</option>
+                </select>
+                <button
+                  onClick={generateMaster}
+                  disabled={isGeneratingContent}
+                  className="bg-blue-600 hover:bg-blue-500 text-white font-black py-3 px-8 rounded-full text-lg disabled:opacity-30 transition-all"
+                >
+                  {isGeneratingContent
+                    ? `生成中... (${contentProgress}/4)`
+                    : '60コンテンツを生成'}
+                </button>
+              </div>
+              {isGeneratingContent && (
+                <div className="mt-4">
+                  <div className="flex gap-1">
+                    {CATEGORY_BATCHES.map((batch, i) => (
+                      <div
+                        key={i}
+                        className={`h-1.5 flex-1 rounded transition-all duration-500 ${i < contentProgress ? 'bg-blue-500' : 'bg-gray-700'}`}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-2">
+                    {contentProgress > 0 && contentProgress <= 4
+                      ? `${CATEGORY_BATCHES[contentProgress - 1]?.join(' / ')} を生成中...`
+                      : ''}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* 生成結果 */}
+            {masterData && (
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-2xl font-black text-yellow-500">
+                      {masterData.metadata.year}年 {masterData.metadata.season}
+                    </h2>
+                    <p className="text-gray-400 text-sm mt-1">{masterData.metadata.description}</p>
+                    <p className="text-gray-500 text-xs mt-1">{masterData.entries.length}件生成済み</p>
+                  </div>
+                  <button
+                    onClick={downloadMaster}
+                    className="bg-green-600 hover:bg-green-500 text-white font-black py-3 px-6 rounded-full transition-all"
+                  >
+                    JSONをダウンロード
+                  </button>
+                </div>
+
+                {/* カテゴリ別プレビュー */}
+                {CATEGORY_BATCHES.flat().map(category => {
+                  const items = masterData.entries.filter((e: any) => e.category === category);
+                  if (items.length === 0) return null;
+                  return (
+                    <div key={category} className="mb-6 bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+                      <div className="px-5 py-3 bg-gray-800 flex items-center justify-between">
+                        <span className="font-black text-sm tracking-widest text-yellow-500">{category}</span>
+                        <span className="text-xs text-gray-500">{items.length}件</span>
+                      </div>
+                      <ul className="divide-y divide-gray-800">
+                        {items.map((item: any) => (
+                          <li key={item.id} className="px-5 py-3">
+                            <p className="font-bold text-white">{item.title}</p>
+                            <p className="text-xs text-gray-400 mt-0.5">{item.catchphrase}</p>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
     </main>
   );
