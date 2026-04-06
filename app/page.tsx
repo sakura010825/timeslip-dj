@@ -11,9 +11,15 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentVideoId, setCurrentVideoId] = useState<string | null>(null);
+  const [savedAudioUrls, setSavedAudioUrls] = useState<Record<number, string>>({});
+
+  const [mode, setMode] = useState<'youtube' | 'full'>('youtube');
 
   const bgmRef = useRef<HTMLAudioElement | null>(null);
-  const BGM_URL = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-17.mp3"; 
+  const playerRef = useRef<any>(null);
+  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const PREVIEW_SECONDS = 30;
+  const BGM_URL = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-17.mp3";
 
   useEffect(() => {
     bgmRef.current = new Audio(BGM_URL);
@@ -26,11 +32,43 @@ export default function Home() {
     };
   }, []);
 
+  const monthToSeason = (m: number): string => {
+    if (m >= 3 && m <= 5) return 'spring';
+    if (m >= 6 && m <= 8) return 'summer';
+    if (m >= 9 && m <= 11) return 'autumn';
+    return 'winter';
+  };
+
+  const downloadAudio = (index: number) => {
+    const url = savedAudioUrls[index];
+    if (!url) return;
+    const season = monthToSeason(Number(month));
+    const filename = `${year}-${season}-seg${index + 1}.mp3`;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+  };
+
+  const downloadScript = () => {
+    if (segments.length === 0) return;
+    const season = monthToSeason(Number(month));
+    const data = { year, month, season, segments };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${year}-${season}-script.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const generateProgram = async () => {
     setIsLoading(true);
     setSegments([]);
     setCurrentIndex(0);
     setCurrentVideoId(null);
+    setSavedAudioUrls({});
     try {
       const response = await fetch('/api/generate-script', {
         method: 'POST',
@@ -83,6 +121,7 @@ export default function Home() {
       
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
+      setSavedAudioUrls(prev => ({ ...prev, [index]: url }));
       const audio = new Audio(url);
       
       audio.onplay = () => {
@@ -102,6 +141,13 @@ export default function Home() {
   };
 
   const onMusicEnd = () => {
+    if (previewTimerRef.current) {
+      clearTimeout(previewTimerRef.current);
+      previewTimerRef.current = null;
+    }
+    if (playerRef.current) {
+      playerRef.current.stopVideo();
+    }
     setCurrentVideoId(null);
     if (currentIndex < segments.length - 1) {
       const nextIdx = currentIndex + 1;
@@ -127,7 +173,7 @@ export default function Home() {
 
         {/* 設定エリア */}
         <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 mb-10 inline-block shadow-2xl">
-          <div className="flex gap-4 items-center">
+          <div className="flex gap-4 items-center flex-wrap justify-center">
             <select value={year} onChange={(e) => setYear(e.target.value)} className="bg-gray-800 p-3 rounded-lg border border-gray-700 text-xl text-yellow-500">
               {Array.from({ length: 46 }, (_, i) => 1980 + i).map(y => <option key={y} value={y}>{y}年</option>)}
             </select>
@@ -137,6 +183,21 @@ export default function Home() {
             <button onClick={generateProgram} disabled={isLoading} className="bg-yellow-600 hover:bg-yellow-500 text-white font-black py-3 px-8 rounded-full text-lg disabled:opacity-30 transition-all">
               {isLoading ? '構成作成中...' : '番組をフル生成'}
             </button>
+            {/* モード切り替え */}
+            <div className="flex items-center gap-2 bg-gray-800 rounded-full p-1 border border-gray-700">
+              <button
+                onClick={() => setMode('youtube')}
+                className={`px-4 py-2 rounded-full text-sm font-black transition-all ${mode === 'youtube' ? 'bg-red-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
+              >
+                YouTube用 (30秒)
+              </button>
+              <button
+                onClick={() => setMode('full')}
+                className={`px-4 py-2 rounded-full text-sm font-black transition-all ${mode === 'full' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
+              >
+                Web用 (フル)
+              </button>
+            </div>
           </div>
         </div>
 
@@ -148,7 +209,18 @@ export default function Home() {
             {currentVideoId && (
               <div className="fixed bottom-4 right-4 z-50 shadow-2xl border-2 border-red-600 rounded-lg overflow-hidden">
                 <div className="bg-red-600 text-white text-[10px] px-2 py-1 font-bold">NOW PLAYING</div>
-                <YouTube videoId={currentVideoId} opts={{ height: '180', width: '320', playerVars: { autoplay: 1, controls: 1 } }} onEnd={onMusicEnd} />
+                <YouTube
+                  videoId={currentVideoId}
+                  opts={{ height: '180', width: '320', playerVars: { autoplay: 1, controls: 1 } }}
+                  onReady={(e) => { playerRef.current = e.target; }}
+                  onPlay={() => {
+                    if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+                    if (mode === 'youtube') {
+                      previewTimerRef.current = setTimeout(onMusicEnd, PREVIEW_SECONDS * 1000);
+                    }
+                  }}
+                  onEnd={onMusicEnd}
+                />
               </div>
             )}
 
@@ -164,9 +236,14 @@ export default function Home() {
                 <span className="text-xs font-bold text-red-600 tracking-widest uppercase mb-1 block">Corner {currentIndex + 1} / {segments.length}</span>
                 <h2 className="text-3xl font-black tracking-tight">{currentSegment.segmentTitle}</h2>
               </div>
-              <button onClick={() => playVoice(currentIndex)} disabled={isPlaying || !!currentVideoId} className="bg-red-600 text-white px-8 py-4 rounded-full font-black hover:bg-red-700 disabled:bg-gray-400 shadow-lg flex items-center gap-2">
-                {isPlaying ? <span className="animate-pulse">● 生成＆再生中...</span> : currentVideoId ? '🎵 MUSIC ON AIR' : '▶ トークを聴く'}
-              </button>
+              <div className="flex flex-col gap-2 items-end">
+                <button onClick={() => playVoice(currentIndex)} disabled={isPlaying || !!currentVideoId} className="bg-red-600 text-white px-8 py-4 rounded-full font-black hover:bg-red-700 disabled:bg-gray-400 shadow-lg flex items-center gap-2">
+                  {isPlaying ? <span className="animate-pulse">● 生成＆再生中...</span> : currentVideoId ? '🎵 MUSIC ON AIR' : '▶ トークを聴く'}
+                </button>
+                <button onClick={downloadScript} className="text-xs text-gray-500 underline hover:text-gray-700">
+                  スクリプトをJSONで保存
+                </button>
+              </div>
             </div>
 
             <div className="whitespace-pre-wrap font-serif text-lg leading-relaxed mb-10 bg-gray-50 p-6 rounded border-l-4 border-gray-300">
@@ -185,6 +262,11 @@ export default function Home() {
                         {segment.songTitle} / {segment.artistName}
                       </p>
                     </div>
+                    {savedAudioUrls[idx] && (
+                      <button onClick={() => downloadAudio(idx)} className="text-[10px] bg-green-600 text-white px-2 py-1 rounded font-bold hover:bg-green-700">
+                        ↓ MP3保存
+                      </button>
+                    )}
                     {idx === currentIndex && (
                       <span className="text-[10px] bg-red-600 text-white px-2 py-1 rounded-full font-bold animate-pulse">NOW ON AIR</span>
                     )}
