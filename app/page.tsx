@@ -104,13 +104,35 @@ export default function Home() {
     }
   };
 
+  const fadeBgmOut = (onComplete: () => void) => {
+    const bgm = bgmRef.current;
+    if (!bgm || bgm.paused) { onComplete(); return; }
+
+    const FADE_DURATION = 1500; // ms
+    const STEPS = 15;
+    const interval = FADE_DURATION / STEPS;
+    const initialVolume = bgm.volume;
+    let step = 0;
+
+    const timer = setInterval(() => {
+      step++;
+      bgm.volume = Math.max(0, initialVolume * (1 - step / STEPS));
+      if (step >= STEPS) {
+        clearInterval(timer);
+        bgm.pause();
+        bgm.volume = initialVolume; // 次回のために音量を戻す
+        onComplete();
+      }
+    }, interval);
+  };
+
   const playVoice = async (index: number) => {
     const currentScript = segments[index]?.script;
     if (!currentScript) return;
-    
+
     setIsPlaying(true);
-    setCurrentVideoId(null); 
-    bgmRef.current?.play().catch(e => console.log("BGMの再生にはユーザー操作が必要です"));
+    setCurrentVideoId(null);
+    bgmRef.current?.play().catch(() => {});
 
     try {
       const response = await fetch('/api/tts', {
@@ -118,21 +140,19 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: currentScript }),
       });
-      
+
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       setSavedAudioUrls(prev => ({ ...prev, [index]: url }));
       const audio = new Audio(url);
-      
-      audio.onplay = () => {
-        bgmRef.current?.pause();
-      };
 
       audio.onended = () => {
         setIsPlaying(false);
         playMusic(segments[index]);
       };
-      audio.play();
+
+      // BGMをフェードアウトしてからTTS再生
+      fadeBgmOut(() => { audio.play(); });
     } catch (error) {
       console.error('TTS Playback Error:', error);
       bgmRef.current?.pause();
