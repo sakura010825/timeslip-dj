@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import fewShotSamples from '@/data/few-shot-samples.json';
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY || '');
 
@@ -29,6 +30,27 @@ const SEASON_JP: Record<string, string> = {
   spring: '春', summer: '夏', autumn: '秋', winter: '冬',
 };
 
+// few-shotサンプルをプロンプトに埋め込む
+// 完全な1例（スキーマ確認用）＋ 3本のeditorsEye（多様な書き出しを示す）
+function buildFewShotExample(): string {
+  const fullSample = fewShotSamples[0]; // Windows95：完全な構造例
+  const editorsEyeExamples = fewShotSamples.map(
+    s => `【${s.title}】\n${s.editorsEye}`
+  ).join('\n\n');
+
+  return `
+## 完全な出力例（JSONスキーマの確認用）
+
+\`\`\`json
+${JSON.stringify(fullSample, null, 2)}
+\`\`\`
+
+## editorsEyeの多様な書き出し例（書き出しパターンを毎回変えること）
+
+${editorsEyeExamples}
+`;
+}
+
 export async function POST(req: Request) {
   try {
     const { year, season, categories } = await req.json() as {
@@ -44,17 +66,29 @@ export async function POST(req: Request) {
       .join('\n');
 
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.5-flash',
       generationConfig: { responseMimeType: 'application/json' },
     });
 
-    const prompt = `あなたは1980〜2000年代の日本の文化・エンタメに精通したアーキビストです。
-${year}年${seasonJP}（${months}）に話題になったコンテンツを以下のカテゴリから各5つずつ選んでください。
+    const prompt = `あなたは1980〜2000年代の日本の文化・エンタメに精通した文化批評家です。
+${year}年${seasonJP}（${months}）に話題になったコンテンツを以下のカテゴリから各5つずつ選び、深く書いてください。
 
 対象カテゴリ：
 ${categoryDescriptions}
 
-ターゲット：現在40〜50代（1970〜1980年代生まれ）の日本人。当時を懐かしめる具体的なコンテンツを選ぶこと。
+ターゲット：現在40〜50代（1970〜1980年代生まれ）の日本人。
+当時を「情報として知る」のではなく「体験として思い出す」コンテンツを選ぶこと。
+
+## コンテンツ制作の哲学
+「情報提供ではなく、体験の再構成」
+
+各エントリーは以下の4セクション構造で書くこと：
+1. **dataAndNumbers**：具体的な数字・データで当時の規模感・熱量を体感させる（100字程度）
+2. **visualElements**：読者の視覚的記憶を呼び起こす情景描写（100字程度）。五感に訴えること
+3. **editorsEye**：文化批評エッセイ。**必ず400字以上**書くこと。「何が起きたか」ではなく「それが何を意味したか」を書く。事実をメタファーに変換して時代を解剖すること。報告文ではなくエッセイのトーンで。**書き出しのパターンは毎回異なること**（「〜は単なる〇〇ではなかった」を繰り返さない）
+4. **theLink2026**：現在との接続（100字程度）。読者への問いかけで終わること
+
+${buildFewShotExample()}
 
 以下のJSON形式で、各カテゴリ5エントリーを生成してください：
 
@@ -72,15 +106,16 @@ ${categoryDescriptions}
       "focus": "テーマ・サブタイトル（20字以内）",
       "catchphrase": "40〜50代が当時を懐かしめる感情的なキャッチコピー（40字以内）",
       "djScript": "ラジオDJが紹介するような語り口（120〜180字）。具体的な記憶・情景を喚起すること。カタカナ・ひらがな中心で書き、英語略語はカタカナに変換すること。",
-      "story": "【01 THE ARTIFACT】\\nコンテンツの詳細・特徴（100字程度）\\n\\n【02 THE CONTEXT】\\n当時の社会背景・流行との関係（100字程度）",
+      "dataAndNumbers": "具体的な数字・データで当時の規模感・熱量を体感させる（100字程度）",
+      "visualElements": "読者の視覚的記憶を呼び起こす情景描写（100字程度）。五感に訴えること",
+      "editorsEye": "文化批評エッセイ（400字以上・厳守）。書き出しは毎回異なるアプローチで。事実をメタファーに変換して時代を解剖する。報告文ではなくエッセイのトーン",
+      "theLink2026": "現在との接続（100字程度）。読者への問いかけで終わること",
       "designFile": {
         "color": "代表カラー（例: Cherry Red / Silver）",
         "form": "形状・フォーマット（例: Cartridge ROM）",
         "material": "素材・メディア（例: Plastic / CD-ROM）",
         "specs": ["特徴または仕様1", "特徴または仕様2", "特徴または仕様3"]
-      },
-      "editorsEye": "編集者の視点からの短評（60字以内）",
-      "theLink2026": "2026年現在との繋がり・現代的意義（60字以内）"
+      }
     }
   ]
 }
