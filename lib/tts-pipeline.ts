@@ -21,6 +21,27 @@ const SILENCE_INTRA_MS = 120; // チャンク間
 const SILENCE_PARAGRAPH_MS = 400; // 段落境界
 const MAX_ATTEMPTS = 3;
 
+/**
+ * TTSモデル設定。環境変数で切り替え可能。
+ *
+ * - 既定: `tts-1-hd`（シンヤの声質——深夜DJ的なロートーン——を優先）
+ * - 比較検証時: `TTS_MODEL=gpt-4o-mini-tts` を指定
+ *
+ * 2026-05-11 評価メモ:
+ *   gpt-4o-mini-tts は言い間違い・英語化が大幅減少するが、AI的・機械的な
+ *   トーンになる。サービスの核である「質感」を犠牲にする判断はしない。
+ *   言い間違いは編集ワークフロー（チャンク単位のテキスト修正＋再生成）で
+ *   担保する方針へ転換した。
+ */
+export const TTS_MODEL = process.env.TTS_MODEL ?? 'tts-1-hd';
+export const TTS_VOICE = process.env.TTS_VOICE ?? 'onyx';
+export const TTS_INSTRUCTIONS = process.env.TTS_INSTRUCTIONS;
+
+console.log(
+  `[TTS config] model=${TTS_MODEL} voice=${TTS_VOICE}` +
+    (TTS_INSTRUCTIONS ? ` instructions="${TTS_INSTRUCTIONS.slice(0, 40)}..."` : ''),
+);
+
 export type GeneratedChunk = Chunk & {
   mp3: Buffer;
   attempts: number;
@@ -255,11 +276,15 @@ function applyRetryVariant(text: string, attempt: number): string {
 }
 
 async function ttsSingle(text: string): Promise<Buffer> {
-  const mp3 = await openai.audio.speech.create({
-    model: 'tts-1-hd',
-    voice: 'onyx',
+  const params: Parameters<typeof openai.audio.speech.create>[0] = {
+    model: TTS_MODEL,
+    voice: TTS_VOICE as Parameters<typeof openai.audio.speech.create>[0]['voice'],
     input: text,
-  });
+  };
+  if (TTS_INSTRUCTIONS) {
+    (params as { instructions?: string }).instructions = TTS_INSTRUCTIONS;
+  }
+  const mp3 = await openai.audio.speech.create(params);
   return Buffer.from(await mp3.arrayBuffer());
 }
 

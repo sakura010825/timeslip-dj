@@ -2,7 +2,12 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import { sanitizeForTTS } from '@/lib/tts-sanitize';
-import { runTTSPipeline } from '@/lib/tts-pipeline';
+import {
+  runTTSPipeline,
+  TTS_MODEL,
+  TTS_VOICE,
+  TTS_INSTRUCTIONS,
+} from '@/lib/tts-pipeline';
 
 const ARCHIVE_ROOT = path.resolve(process.cwd(), '.tts-archive');
 
@@ -60,6 +65,11 @@ function saveArchive(a: ArchiveInput) {
 
     const meta = {
       timestamp: new Date().toISOString(),
+      tts: {
+        model: TTS_MODEL,
+        voice: TTS_VOICE,
+        instructions: TTS_INSTRUCTIONS ?? null,
+      },
       rawLength: a.rawText.length,
       cleanLength: a.cleanText.length,
       outputBytes: a.finalMp3.length,
