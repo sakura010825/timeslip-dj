@@ -27,6 +27,14 @@ export const PRONUNCIATION_DICT: PronunciationEntry[] = [
   { pattern: '競馬', replacement: 'けいば', note: '「きょうば」と誤読' },
   { pattern: '仰木彬', replacement: 'おおぎあきら', note: '読めず破綻' },
   { pattern: '仰木', replacement: 'おおぎ', note: '単独使用時のフォールバック' },
+  // 2026-05-11 hideさんの 1995-09 編集ログから抽出した固有名詞・難読語
+  { pattern: '倶楽部', replacement: 'くらぶ', note: 'プリント倶楽部などで誤読（クラックなどに化ける）' },
+  { pattern: '現像', replacement: 'げんぞう', note: '現像液で誤読' },
+  { pattern: '野島伸司', replacement: 'のじましんじ', note: 'TV脚本家。人名読み誤り' },
+  { pattern: 'いしだ壱成', replacement: 'いしだいっせい', note: '俳優名。「壱成」が読めず破綻' },
+  { pattern: '反町隆史', replacement: 'そりまちたかし', note: '俳優名。「反町」が読めず破綻' },
+  { pattern: '桜井幸子', replacement: 'さくらいさちこ', note: '俳優名。「幸子→さちこ」' },
+  { pattern: 'ジュディ・アンド・メアリー', replacement: 'ジュディ・アンド・まりー', note: 'バンド名。メアリー部分が英語化を誘発' },
 ];
 
 /**
