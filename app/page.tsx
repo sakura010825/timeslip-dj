@@ -266,15 +266,30 @@ export default function Home() {
   /**
    * 指定セグメントの合成音声を再生（必要なら生成も）。
    * audio.onended で楽曲再生に進む（旧 playVoice の振る舞いを踏襲）。
+   *
+   * BGM挙動: archive が既に生成済みの場合、ensureTTS は瞬時に返るため
+   * BGMが鳴る時間が極端に短くなる。セグメント開始の儀式として
+   * 最低 1.5 秒は BGM を響かせてから fadeBgmOut へ移行する。
    */
   const playVoice = async (index: number) => {
     if (isPlaying) return;
-    const archive = await ensureTTS(index);
-    if (!archive) return;
-
     setIsPlaying(true);
     setCurrentVideoId(null);
     bgmRef.current?.play().catch(() => {});
+    const bgmStartedAt = Date.now();
+    const BGM_MIN_MS = 1500;
+
+    const archive = await ensureTTS(index);
+    if (!archive) {
+      setIsPlaying(false);
+      bgmRef.current?.pause();
+      return;
+    }
+
+    const elapsed = Date.now() - bgmStartedAt;
+    if (elapsed < BGM_MIN_MS) {
+      await new Promise((r) => setTimeout(r, BGM_MIN_MS - elapsed));
+    }
 
     const audio = new Audio(archive.outputUrl);
 
