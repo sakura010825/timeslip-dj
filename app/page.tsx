@@ -142,7 +142,7 @@ export default function Home() {
   };
 
   const playMusic = async (song: any) => {
-    if (!song) return;
+    if (!song || !song.songTitle) return;
     try {
       const query = `${song.artistName} ${song.songTitle}`;
       const res = await fetch('/api/search-video', {
@@ -193,25 +193,78 @@ export default function Home() {
       const response = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: currentScript }),
+        body: JSON.stringify({
+          text: currentScript,
+          metadata: {
+            segmentIndex: index,
+            segmentTitle: segments[index]?.segmentTitle,
+            year,
+            month,
+            season: monthToSeason(Number(month)),
+          },
+        }),
       });
+
+      if (!response.ok) {
+        const msg = await response.text();
+        throw new Error(`TTS API ${response.status}: ${msg}`);
+      }
 
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       setSavedAudioUrls(prev => ({ ...prev, [index]: url }));
       const audio = new Audio(url);
 
-      audio.onended = () => {
+      console.log(`[playVoice] seg=${index} scriptLen=${currentScript.length} blobSize=${blob.size}`);
+
+      const advance = () => {
         setIsPlaying(false);
-        playMusic(segments[index]);
+        const seg = segments[index];
+        if (seg?.songTitle) {
+          playMusic(seg);
+        } else if (index < segments.length - 1) {
+          const nextIdx = index + 1;
+          setCurrentIndex(nextIdx);
+          setTimeout(() => { playVoice(nextIdx); }, 1500);
+        } else {
+          alert('本日の放送はすべて終了しました。ご視聴ありがとうございました！');
+        }
       };
 
-      // BGMをフェードアウトしてからTTS再生
-      fadeBgmOut(() => { audio.play(); });
+      audio.onloadedmetadata = () => {
+        console.log(`[playVoice] seg=${index} audio.duration=${audio.duration.toFixed(1)}s`);
+      };
+
+      audio.onended = () => {
+        console.log(`[playVoice] seg=${index} ended normally at ${audio.currentTime.toFixed(1)}s / ${audio.duration.toFixed(1)}s`);
+        // 想定より極端に短く終わった場合（30秒以上の台本が10秒未満で終了など）は警告
+        if (audio.duration > 30 && audio.currentTime < audio.duration - 5) {
+          console.warn(`[playVoice] seg=${index} audio ended prematurely: ${audio.currentTime.toFixed(1)}s / ${audio.duration.toFixed(1)}s`);
+          alert(`⚠ 音声が途中で終わりました（${audio.currentTime.toFixed(0)}秒／${audio.duration.toFixed(0)}秒）。次の曲に進みます。`);
+        }
+        advance();
+      };
+
+      audio.onerror = (e) => {
+        const err = audio.error;
+        console.error(`[playVoice] seg=${index} audio error:`, err?.code, err?.message, e);
+        alert(`音声再生エラー (code=${err?.code}): ${err?.message ?? 'unknown'}\n次のセグメントへ進みます。`);
+        advance();
+      };
+
+      audio.onstalled = () => console.warn(`[playVoice] seg=${index} stalled`);
+      audio.onsuspend = () => console.log(`[playVoice] seg=${index} suspended`);
+
+      fadeBgmOut(() => { audio.play().catch(err => {
+        console.error(`[playVoice] seg=${index} play() rejected:`, err);
+        alert(`音声の再生開始に失敗しました: ${err.message}`);
+        advance();
+      }); });
     } catch (error) {
       console.error('TTS Playback Error:', error);
       bgmRef.current?.pause();
       setIsPlaying(false);
+      alert(`音声生成に失敗しました: ${error instanceof Error ? error.message : 'Unknown'}`);
     }
   };
 
@@ -372,7 +425,9 @@ export default function Home() {
                     <span className="font-mono text-sm text-gray-400">#{idx + 1}</span>
                     <div className="flex-1">
                       <p className={`text-lg font-black ${idx === currentIndex ? 'text-gray-900' : 'text-gray-600'}`}>
-                        {segment.songTitle} / {segment.artistName}
+                        {segment.songTitle
+                          ? `${segment.songTitle} / ${segment.artistName}`
+                          : '（エンディング・楽曲なし）'}
                       </p>
                     </div>
                     {savedAudioUrls[idx] && (
