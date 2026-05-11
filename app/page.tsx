@@ -3,15 +3,41 @@
 import { useState, useRef, useEffect } from 'react';
 import YouTube from 'react-youtube';
 
+type ChunkInfo = {
+  index: number;
+  text: string;
+  mp3Bytes: number;
+  mp3Url: string;
+  attempts: number;
+  paragraphBoundaryAfter: boolean;
+  verification: { ok: boolean; reason?: string; similarity?: number; maxGap?: number; transcript?: string } | null;
+  previousText?: string | null;
+  editedAt?: string | null;
+};
+
+type SegmentArchive = {
+  archiveId: string;
+  outputUrl: string;
+  outputBytes: number;
+  pipelineMs?: number;
+  warnings: string[];
+  chunks: ChunkInfo[];
+};
+
 export default function Home() {
   const [year, setYear] = useState('1995');
   const [month, setMonth] = useState('8');
-  const [segments, setSegments] = useState<any[]>([]); 
-  const [currentIndex, setCurrentIndex] = useState(0); 
+  const [segments, setSegments] = useState<any[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentVideoId, setCurrentVideoId] = useState<string | null>(null);
-  const [savedAudioUrls, setSavedAudioUrls] = useState<Record<number, string>>({});
+
+  // 編集ワークフロー: セグメントごとのTTSアーカイブ
+  const [archives, setArchives] = useState<Record<number, SegmentArchive>>({});
+  const [ttsGenerating, setTtsGenerating] = useState<Record<number, boolean>>({});
+  const [editingChunk, setEditingChunk] = useState<{ segmentIndex: number; chunkIndex: number; text: string } | null>(null);
+  const [regeneratingChunk, setRegeneratingChunk] = useState<{ segmentIndex: number; chunkIndex: number } | null>(null);
 
   const [mode, setMode] = useState<'youtube' | 'full'>('youtube');
 
@@ -94,15 +120,25 @@ export default function Home() {
     return 'winter';
   };
 
-  const downloadAudio = (index: number) => {
-    const url = savedAudioUrls[index];
-    if (!url) return;
+  const downloadAudio = async (index: number) => {
+    const archive = archives[index];
+    if (!archive) return;
     const season = monthToSeason(Number(month));
     const filename = `${year}-${season}-seg${index + 1}.mp3`;
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
+    // outputUrl は /api/tts-archive/.../output.mp3?t=... なので fetch して blob 経由でDL
+    try {
+      const res = await fetch(archive.outputUrl);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Download failed:', e);
+      alert('ダウンロードに失敗しました');
+    }
   };
 
   const downloadScript = () => {
@@ -123,7 +159,8 @@ export default function Home() {
     setSegments([]);
     setCurrentIndex(0);
     setCurrentVideoId(null);
-    setSavedAudioUrls({});
+    setArchives({});
+    setTtsGenerating({});
     try {
       const response = await fetch('/api/generate-script', {
         method: 'POST',
@@ -181,14 +218,16 @@ export default function Home() {
     }, interval);
   };
 
-  const playVoice = async (index: number) => {
+  /**
+   * セグメントのTTSをまだ未生成なら生成して archives に保存。
+   * 既に生成済みなら何もしない。
+   */
+  const ensureTTS = async (index: number): Promise<SegmentArchive | null> => {
+    if (archives[index]) return archives[index];
     const currentScript = segments[index]?.script;
-    if (!currentScript) return;
+    if (!currentScript) return null;
 
-    setIsPlaying(true);
-    setCurrentVideoId(null);
-    bgmRef.current?.play().catch(() => {});
-
+    setTtsGenerating((prev) => ({ ...prev, [index]: true }));
     try {
       const response = await fetch('/api/tts', {
         method: 'POST',
@@ -204,67 +243,127 @@ export default function Home() {
           },
         }),
       });
-
       if (!response.ok) {
         const msg = await response.text();
         throw new Error(`TTS API ${response.status}: ${msg}`);
       }
-
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      setSavedAudioUrls(prev => ({ ...prev, [index]: url }));
-      const audio = new Audio(url);
-
-      console.log(`[playVoice] seg=${index} scriptLen=${currentScript.length} blobSize=${blob.size}`);
-
-      const advance = () => {
-        setIsPlaying(false);
-        const seg = segments[index];
-        if (seg?.songTitle) {
-          playMusic(seg);
-        } else if (index < segments.length - 1) {
-          const nextIdx = index + 1;
-          setCurrentIndex(nextIdx);
-          setTimeout(() => { playVoice(nextIdx); }, 1500);
-        } else {
-          alert('本日の放送はすべて終了しました。ご視聴ありがとうございました！');
-        }
-      };
-
-      audio.onloadedmetadata = () => {
-        console.log(`[playVoice] seg=${index} audio.duration=${audio.duration.toFixed(1)}s`);
-      };
-
-      audio.onended = () => {
-        console.log(`[playVoice] seg=${index} ended normally at ${audio.currentTime.toFixed(1)}s / ${audio.duration.toFixed(1)}s`);
-        // 想定より極端に短く終わった場合（30秒以上の台本が10秒未満で終了など）は警告
-        if (audio.duration > 30 && audio.currentTime < audio.duration - 5) {
-          console.warn(`[playVoice] seg=${index} audio ended prematurely: ${audio.currentTime.toFixed(1)}s / ${audio.duration.toFixed(1)}s`);
-          alert(`⚠ 音声が途中で終わりました（${audio.currentTime.toFixed(0)}秒／${audio.duration.toFixed(0)}秒）。次の曲に進みます。`);
-        }
-        advance();
-      };
-
-      audio.onerror = (e) => {
-        const err = audio.error;
-        console.error(`[playVoice] seg=${index} audio error:`, err?.code, err?.message, e);
-        alert(`音声再生エラー (code=${err?.code}): ${err?.message ?? 'unknown'}\n次のセグメントへ進みます。`);
-        advance();
-      };
-
-      audio.onstalled = () => console.warn(`[playVoice] seg=${index} stalled`);
-      audio.onsuspend = () => console.log(`[playVoice] seg=${index} suspended`);
-
-      fadeBgmOut(() => { audio.play().catch(err => {
-        console.error(`[playVoice] seg=${index} play() rejected:`, err);
-        alert(`音声の再生開始に失敗しました: ${err.message}`);
-        advance();
-      }); });
+      const data: SegmentArchive = await response.json();
+      console.log(
+        `[ensureTTS] seg=${index} archiveId=${data.archiveId} ` +
+          `chunks=${data.chunks.length} pipelineMs=${data.pipelineMs}`,
+      );
+      setArchives((prev) => ({ ...prev, [index]: data }));
+      return data;
     } catch (error) {
-      console.error('TTS Playback Error:', error);
-      bgmRef.current?.pause();
-      setIsPlaying(false);
+      console.error(`[ensureTTS] seg=${index} error:`, error);
       alert(`音声生成に失敗しました: ${error instanceof Error ? error.message : 'Unknown'}`);
+      return null;
+    } finally {
+      setTtsGenerating((prev) => ({ ...prev, [index]: false }));
+    }
+  };
+
+  /**
+   * 指定セグメントの合成音声を再生（必要なら生成も）。
+   * audio.onended で楽曲再生に進む（旧 playVoice の振る舞いを踏襲）。
+   */
+  const playVoice = async (index: number) => {
+    if (isPlaying) return;
+    const archive = await ensureTTS(index);
+    if (!archive) return;
+
+    setIsPlaying(true);
+    setCurrentVideoId(null);
+    bgmRef.current?.play().catch(() => {});
+
+    const audio = new Audio(archive.outputUrl);
+
+    const advance = () => {
+      setIsPlaying(false);
+      const seg = segments[index];
+      if (seg?.songTitle) {
+        playMusic(seg);
+      } else if (index < segments.length - 1) {
+        const nextIdx = index + 1;
+        setCurrentIndex(nextIdx);
+      } else {
+        // ループは終端で停止（編集中の再聴行為を妨げない）
+      }
+    };
+
+    audio.onloadedmetadata = () => {
+      console.log(`[playVoice] seg=${index} audio.duration=${audio.duration.toFixed(1)}s`);
+    };
+    audio.onended = () => {
+      console.log(`[playVoice] seg=${index} ended at ${audio.currentTime.toFixed(1)}s / ${audio.duration.toFixed(1)}s`);
+      advance();
+    };
+    audio.onerror = (e) => {
+      const err = audio.error;
+      console.error(`[playVoice] seg=${index} error:`, err?.code, err?.message, e);
+      alert(`音声再生エラー: ${err?.message ?? 'unknown'}`);
+      setIsPlaying(false);
+    };
+
+    fadeBgmOut(() => {
+      audio.play().catch((err) => {
+        console.error(`[playVoice] seg=${index} play() rejected:`, err);
+        setIsPlaying(false);
+      });
+    });
+  };
+
+  /**
+   * 単一チャンクだけ試聴する。fade等なしで即時再生。
+   */
+  const playChunk = (chunk: ChunkInfo) => {
+    const audio = new Audio(chunk.mp3Url);
+    audio.play().catch((err) => {
+      console.error('[playChunk] error:', err);
+      alert(`チャンク再生に失敗: ${err.message}`);
+    });
+  };
+
+  /**
+   * チャンクのテキストを編集して再生成する。
+   */
+  const submitChunkEdit = async (segmentIndex: number, chunkIndex: number, newText: string) => {
+    const archive = archives[segmentIndex];
+    if (!archive) return;
+
+    setRegeneratingChunk({ segmentIndex, chunkIndex });
+    try {
+      const res = await fetch('/api/tts/chunk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          archiveId: archive.archiveId,
+          chunkIndex,
+          newText,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`chunk regen failed: ${res.status} ${body.slice(0, 200)}`);
+      }
+      const data = await res.json();
+      // 既存 archive を chunks+outputUrl で更新
+      setArchives((prev) => ({
+        ...prev,
+        [segmentIndex]: {
+          ...prev[segmentIndex],
+          outputUrl: data.outputUrl,
+          outputBytes: data.outputBytes,
+          chunks: data.chunks,
+        },
+      }));
+      console.log(`[submitChunkEdit] seg=${segmentIndex} chunk=${chunkIndex} regenerated in ${data.ttsMs}ms`);
+      setEditingChunk(null);
+    } catch (e) {
+      console.error('[submitChunkEdit] error:', e);
+      alert(`チャンク編集に失敗: ${e instanceof Error ? e.message : 'unknown'}`);
+    } finally {
+      setRegeneratingChunk(null);
     }
   };
 
@@ -416,33 +515,179 @@ export default function Home() {
               {currentSegment.script}
             </div>
 
-            {/* オンエアリスト（ここを提案通りに変更しました） */}
+            {/* 編集ワークフロー: チャンク一覧 */}
+            {ttsGenerating[currentIndex] && (
+              <div className="mt-8 pt-8 border-t-2 border-dashed border-gray-300 text-center">
+                <p className="text-sm text-gray-600 font-mono animate-pulse">音声を生成しています…</p>
+              </div>
+            )}
+            {archives[currentIndex] && (
+              <div className="mt-8 pt-8 border-t-2 border-dashed border-gray-300">
+                <div className="flex justify-between items-center mb-4">
+                  <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">
+                    Chunks — 編集モード
+                  </p>
+                  <p className="text-[10px] text-gray-400 font-mono">
+                    {archives[currentIndex].chunks.length} chunks ・ archive={archives[currentIndex].archiveId}
+                  </p>
+                </div>
+                <ul className="space-y-2">
+                  {archives[currentIndex].chunks.map((chunk) => {
+                    const isRegen =
+                      regeneratingChunk?.segmentIndex === currentIndex &&
+                      regeneratingChunk.chunkIndex === chunk.index;
+                    const wasEdited = !!chunk.editedAt;
+                    const verifyFailed = chunk.verification && !chunk.verification.ok;
+                    return (
+                      <li
+                        key={chunk.index}
+                        className={`p-3 rounded-lg border ${
+                          wasEdited
+                            ? 'border-green-300 bg-green-50'
+                            : verifyFailed
+                            ? 'border-amber-300 bg-amber-50'
+                            : 'border-gray-200 bg-white'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <span className="font-mono text-xs text-gray-400 w-8 pt-1 text-right">
+                            #{chunk.index}
+                          </span>
+                          <div className="flex-1 text-sm leading-snug text-gray-800">
+                            {chunk.text}
+                            {wasEdited && (
+                              <span className="ml-2 text-[10px] text-green-700 font-bold">✓ 編集済み</span>
+                            )}
+                            {verifyFailed && !wasEdited && (
+                              <span className="ml-2 text-[10px] text-amber-700 font-bold">
+                                ⚠ {chunk.verification?.reason ?? 'verify failed'}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex gap-1 shrink-0">
+                            <button
+                              onClick={() => playChunk(chunk)}
+                              disabled={isRegen}
+                              className="text-[10px] bg-gray-700 text-white px-2 py-1 rounded hover:bg-gray-900 disabled:opacity-30"
+                            >
+                              ▶ 試聴
+                            </button>
+                            <button
+                              onClick={() =>
+                                setEditingChunk({
+                                  segmentIndex: currentIndex,
+                                  chunkIndex: chunk.index,
+                                  text: chunk.text,
+                                })
+                              }
+                              disabled={isRegen}
+                              className="text-[10px] bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 disabled:opacity-30"
+                            >
+                              {isRegen ? '生成中...' : '✏ 編集'}
+                            </button>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {archives[currentIndex].warnings.length > 0 && (
+                  <p className="mt-3 text-[10px] text-gray-500 font-mono">
+                    sanitize warnings: {archives[currentIndex].warnings.join(' / ')}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* オンエアリスト（セグメント間のナビゲーション） */}
             <div className="mt-8 pt-8 border-t-2 border-dashed border-gray-300">
               <p className="text-xs text-gray-500 font-bold mb-4 uppercase tracking-widest text-center">On Air List</p>
               <div className="space-y-3">
-                {segments.slice(0, currentIndex + 1).map((segment, idx) => (
-                  <div key={idx} className={`flex items-center gap-4 p-3 rounded-lg ${idx === currentIndex ? 'bg-yellow-50 border border-yellow-200' : 'opacity-60'}`}>
+                {segments.map((segment, idx) => (
+                  <div
+                    key={idx}
+                    className={`flex items-center gap-4 p-3 rounded-lg cursor-pointer ${
+                      idx === currentIndex
+                        ? 'bg-yellow-50 border border-yellow-200'
+                        : 'opacity-70 hover:opacity-100 hover:bg-gray-50'
+                    }`}
+                    onClick={() => setCurrentIndex(idx)}
+                  >
                     <span className="font-mono text-sm text-gray-400">#{idx + 1}</span>
                     <div className="flex-1">
-                      <p className={`text-lg font-black ${idx === currentIndex ? 'text-gray-900' : 'text-gray-600'}`}>
+                      <p className={`text-sm font-black ${idx === currentIndex ? 'text-gray-900' : 'text-gray-600'}`}>
+                        {segment.segmentTitle ?? `セグメント ${idx + 1}`}
+                      </p>
+                      <p className="text-xs text-gray-500">
                         {segment.songTitle
-                          ? `${segment.songTitle} / ${segment.artistName}`
-                          : '（エンディング・楽曲なし）'}
+                          ? `🎵 ${segment.songTitle} / ${segment.artistName}`
+                          : '（楽曲なし）'}
                       </p>
                     </div>
-                    {savedAudioUrls[idx] && (
-                      <button onClick={() => downloadAudio(idx)} className="text-[10px] bg-green-600 text-white px-2 py-1 rounded font-bold hover:bg-green-700">
-                        ↓ MP3保存
+                    {archives[idx] && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          downloadAudio(idx);
+                        }}
+                        className="text-[10px] bg-green-600 text-white px-2 py-1 rounded font-bold hover:bg-green-700"
+                      >
+                        ↓ MP3
                       </button>
                     )}
-                    {idx === currentIndex && (
-                      <span className="text-[10px] bg-red-600 text-white px-2 py-1 rounded-full font-bold animate-pulse">NOW ON AIR</span>
+                    {idx === currentIndex && isPlaying && (
+                      <span className="text-[10px] bg-red-600 text-white px-2 py-1 rounded-full font-bold animate-pulse">PLAYING</span>
                     )}
                   </div>
                 ))}
               </div>
             </div>
 
+          </div>
+        )}
+
+        {/* チャンク編集モーダル */}
+        {editingChunk && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+            <div className="bg-white text-gray-900 rounded-xl shadow-2xl max-w-2xl w-full p-6">
+              <h3 className="text-lg font-black mb-2">
+                チャンク #{editingChunk.chunkIndex} を編集 — セグメント {editingChunk.segmentIndex + 1}
+              </h3>
+              <p className="text-xs text-gray-500 mb-4">
+                テキストを編集して再生成ボタンを押すと、このチャンクだけが新しい音声で差し替わります。
+                <br />
+                ヒント: 「LOVE」→「ラブ」、「倶楽部」→「くらぶ」のように、誤読しそうな漢字・英単語をひらがな/カタカナに置き換えると効果的です。
+              </p>
+              <textarea
+                value={editingChunk.text}
+                onChange={(e) =>
+                  setEditingChunk({ ...editingChunk, text: e.target.value })
+                }
+                rows={6}
+                className="w-full p-3 border border-gray-300 rounded font-mono text-sm leading-relaxed"
+              />
+              <div className="flex justify-end gap-2 mt-4">
+                <button
+                  onClick={() => setEditingChunk(null)}
+                  className="px-4 py-2 text-sm rounded border border-gray-300 hover:bg-gray-50"
+                >
+                  キャンセル
+                </button>
+                <button
+                  onClick={() =>
+                    submitChunkEdit(
+                      editingChunk.segmentIndex,
+                      editingChunk.chunkIndex,
+                      editingChunk.text,
+                    )
+                  }
+                  disabled={!editingChunk.text.trim() || !!regeneratingChunk}
+                  className="px-4 py-2 text-sm rounded bg-blue-600 text-white font-bold hover:bg-blue-700 disabled:opacity-40"
+                >
+                  {regeneratingChunk ? '再生成中…' : '再生成'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
