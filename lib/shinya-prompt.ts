@@ -76,8 +76,9 @@ export function buildScriptPrompt(params: {
   year: number;
   season: string;
   topics: KnowledgeItem[];
+  musicPool?: KnowledgeItem[];
 }): string {
-  const { year, season, topics } = params;
+  const { year, season, topics, musicPool } = params;
   const sLabel = seasonLabel(season);
   const monthsLabel = SEASON_MONTHS_LABEL[season as SeasonKey] ?? '';
 
@@ -91,11 +92,34 @@ export function buildScriptPrompt(params: {
     )
     .join('\n');
 
+  // 楽曲候補ブロック: 知識ベースの music カテゴリ全件を提示し、
+  // Claude が史実外の曲を hallucination することを防ぐ。
+  const musicBlock = musicPool && musicPool.length > 0
+    ? `
+
+【楽曲候補リスト（必ずこのリストから3曲選ぶこと）】
+${musicPool
+  .map(
+    (m, i) =>
+      `${i + 1}. ${m.title}
+   事実: ${m.oneLiner}
+   キーワード: ${m.keywords.join('、')}`,
+  )
+  .join('\n\n')}
+
+⚠️ 楽曲選定の絶対ルール:
+- 上記の候補リストから **3曲** を選んで番組を構成してください
+- 候補が3曲未満の場合は、利用可能な曲だけで構成し、楽曲数を減らしても構いません
+- 候補が3曲以上ある場合は、話の流れに合うものを選んでください
+- 候補リスト**以外**の楽曲を選ぶことは禁止です。たとえ${year}年${sLabel}にヒットしていても、リストにない曲は使用しないでください（史実誤認・アーカイブ重複防止のためのルール）
+- 出力JSONの songTitle / artistName は、候補の楽曲名・アーティスト名を正確に再現してください`
+    : '';
+
   return `${year}年${sLabel}（${monthsLabel}）の30分番組の台本を、シンヤの声で書いてください。
 
 【今夜の素材（5項目）】
 以下のトピックを材料にしてください。全てを均等に扱う必要はありません。1エピソードの中で自然に消化できる範囲で、素材の「文脈」を自分の言葉で語ってください。
-${topicsBlock}
+${topicsBlock}${musicBlock}
 
 【セグメント構成（合計約28〜29分）】
 1. オープニング（約3分・約800〜1000文字）
