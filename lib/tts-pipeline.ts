@@ -288,6 +288,35 @@ async function ttsSingle(text: string): Promise<Buffer> {
   return Buffer.from(await mp3.arrayBuffer());
 }
 
+/**
+ * 編集ワークフロー向けの単発TTS。検証・リトライなしで1回だけ生成する
+ * （ユーザーが手で直したテキストを生成するため、品質はテキスト側で担保済み前提）。
+ */
+export async function generateSingleChunkMp3(text: string): Promise<Buffer> {
+  return ttsSingle(text);
+}
+
+/**
+ * 既存のチャンクMP3群を順に結合する。編集後の再生成MP3を含めて差し替え結合する用途。
+ */
+export async function concatChunksToMp3(
+  parts: Array<{ mp3: Buffer; paragraphBoundaryAfter?: boolean }>,
+): Promise<Buffer> {
+  const tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'tts-concat-edit-'));
+  try {
+    const items = parts.map((p, i) => ({
+      index: i,
+      text: '',
+      paragraphBoundaryAfter: p.paragraphBoundaryAfter ?? false,
+      mp3: p.mp3,
+      attempts: 0,
+    })) as GeneratedChunk[];
+    return await concatMp3s(tmpDir, items);
+  } finally {
+    fsp.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
 async function concatMp3s(tmpDir: string, chunks: GeneratedChunk[]): Promise<Buffer> {
   const silenceIntraPath = path.join(tmpDir, 'silence-intra.mp3');
   const silenceParaPath = path.join(tmpDir, 'silence-para.mp3');

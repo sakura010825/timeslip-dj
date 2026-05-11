@@ -46,8 +46,10 @@ type ArchiveInput = {
   chunks: {
     index: number;
     text: string;
+    mp3: Buffer;
     mp3Bytes: number;
     attempts: number;
+    paragraphBoundaryAfter?: boolean;
     verification?: { ok: boolean; similarity: number; maxGap: number; transcript: string; reason?: string };
     history?: { ok: boolean; similarity: number; maxGap: number; reason?: string }[];
   }[];
@@ -62,6 +64,26 @@ function saveArchive(a: ArchiveInput) {
     fs.writeFileSync(path.join(dir, 'input.raw.txt'), a.rawText, 'utf8');
     fs.writeFileSync(path.join(dir, 'input.clean.txt'), a.cleanText, 'utf8');
     fs.writeFileSync(path.join(dir, 'output.mp3'), a.finalMp3);
+
+    // チャンク個別MP3を chunks/ 配下に保存（編集ワークフローでの差し替え用）
+    const chunksDir = path.join(dir, 'chunks');
+    fs.mkdirSync(chunksDir, { recursive: true });
+    for (const c of a.chunks) {
+      const fname = `chunk-${String(c.index).padStart(3, '0')}.mp3`;
+      fs.writeFileSync(path.join(chunksDir, fname), c.mp3);
+    }
+
+    // meta.json には mp3 Buffer 自体は含めない（chunks/ 配下にファイルとして保存済み）
+    const chunksForMeta = a.chunks.map((c) => ({
+      index: c.index,
+      text: c.text,
+      mp3Bytes: c.mp3Bytes,
+      mp3File: `chunks/chunk-${String(c.index).padStart(3, '0')}.mp3`,
+      attempts: c.attempts,
+      paragraphBoundaryAfter: c.paragraphBoundaryAfter ?? false,
+      verification: c.verification,
+      history: c.history,
+    }));
 
     const meta = {
       timestamp: new Date().toISOString(),
@@ -79,7 +101,7 @@ function saveArchive(a: ArchiveInput) {
       chunkCount: a.chunks.length,
       totalChunkAttempts: a.chunks.reduce((s, c) => s + c.attempts, 0),
       warnings: a.warnings,
-      chunks: a.chunks,
+      chunks: chunksForMeta,
       ...a.metadata,
     };
     fs.writeFileSync(path.join(dir, 'meta.json'), JSON.stringify(meta, null, 2), 'utf8');
@@ -124,8 +146,9 @@ export async function POST(req: Request) {
     const ts = formatTimestamp(new Date());
     const segSuffix =
       typeof metadata.segmentIndex === 'number' ? `_seg${metadata.segmentIndex}` : '';
+    const archiveId = `${ts}${segSuffix}`;
     saveArchive({
-      base: `${ts}${segSuffix}`,
+      base: archiveId,
       rawText: text,
       cleanText: clean,
       finalMp3: result.mp3,
@@ -134,8 +157,10 @@ export async function POST(req: Request) {
       chunks: result.chunks.map((c) => ({
         index: c.index,
         text: c.text,
+        mp3: c.mp3,
         mp3Bytes: c.mp3.length,
         attempts: c.attempts,
+        paragraphBoundaryAfter: c.paragraphBoundaryAfter,
         verification: c.verification,
         history: c.history?.map((h) => ({
           ok: h.ok,
@@ -147,12 +172,22 @@ export async function POST(req: Request) {
       pipelineMs,
     });
 
-    return new NextResponse(new Uint8Array(result.mp3), {
-      headers: {
-        'Content-Type': 'audio/mpeg',
-        'Content-Length': result.mp3.length.toString(),
-        'Cache-Control': 'no-store',
-      },
+    const stamp = Date.now();
+    return NextResponse.json({
+      archiveId,
+      outputUrl: `/api/tts-archive/${archiveId}/output.mp3?t=${stamp}`,
+      outputBytes: result.mp3.length,
+      pipelineMs,
+      warnings,
+      chunks: result.chunks.map((c) => ({
+        index: c.index,
+        text: c.text,
+        mp3Bytes: c.mp3.length,
+        mp3Url: `/api/tts-archive/${archiveId}/chunks/chunk-${String(c.index).padStart(3, '0')}.mp3?t=${stamp}`,
+        attempts: c.attempts,
+        paragraphBoundaryAfter: c.paragraphBoundaryAfter ?? false,
+        verification: c.verification ?? null,
+      })),
     });
   } catch (error) {
     console.error('TTS Error:', error);
