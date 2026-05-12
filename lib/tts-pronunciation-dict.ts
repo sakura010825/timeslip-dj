@@ -35,6 +35,11 @@ export const PRONUNCIATION_DICT: PronunciationEntry[] = [
   { pattern: '反町隆史', replacement: 'そりまちたかし', note: '俳優名。「反町」が読めず破綻' },
   { pattern: '桜井幸子', replacement: 'さくらいさちこ', note: '俳優名。「幸子→さちこ」' },
   { pattern: 'ジュディ・アンド・メアリー', replacement: 'ジュディ・アンド・まりー', note: 'バンド名。メアリー部分が英語化を誘発' },
+  // 2026-05-12 Azure 評価で確認された誤読
+  { pattern: '米米CLUB', replacement: 'こめこめクラブ', note: 'Azureが「ベイベイクラブ」と読む（米を音読み）' },
+  { pattern: 'F1', replacement: 'エフワン', note: 'F1の読み誤り対策' },
+  { pattern: 'KAN', replacement: 'カン', note: 'シンガーKAN。Azureが英語読みする' },
+  { pattern: 'JAL', replacement: 'ジャル', note: '航空会社名。略語の英語読み回避' },
 ];
 
 /**
