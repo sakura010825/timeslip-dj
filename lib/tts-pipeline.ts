@@ -22,25 +22,47 @@ const SILENCE_PARAGRAPH_MS = 400; // 段落境界
 const MAX_ATTEMPTS = 3;
 
 /**
- * TTSモデル設定。環境変数で切り替え可能。
+ * TTSプロバイダ設定。環境変数で切り替え可能。
  *
- * - 既定: `tts-1-hd`（シンヤの声質——深夜DJ的なロートーン——を優先）
- * - 比較検証時: `TTS_MODEL=gpt-4o-mini-tts` を指定
+ * 2026-05-12 評価で Azure 日本語ネイティブ音声（Naoki）を採用：
+ *   - tts-1-hd: 編集率28〜54%（漢字・略語に弱く不安定）
+ *   - Azure Naoki: 精度80〜90%、安定、高速、無料枠（50万文字/月）
  *
- * 2026-05-11 評価メモ:
- *   gpt-4o-mini-tts は言い間違い・英語化が大幅減少するが、AI的・機械的な
- *   トーンになる。サービスの核である「質感」を犠牲にする判断はしない。
- *   言い間違いは編集ワークフロー（チャンク単位のテキスト修正＋再生成）で
- *   担保する方針へ転換した。
+ * - 既定: TTS_PROVIDER=azure（Naoki 採用）
+ * - 旧モデル比較: TTS_PROVIDER=openai
  */
+export const TTS_PROVIDER = (process.env.TTS_PROVIDER ?? 'azure') as 'azure' | 'openai';
+
+// OpenAI 設定（TTS_PROVIDER=openai のとき使用）
 export const TTS_MODEL = process.env.TTS_MODEL ?? 'tts-1-hd';
 export const TTS_VOICE = process.env.TTS_VOICE ?? 'onyx';
 export const TTS_INSTRUCTIONS = process.env.TTS_INSTRUCTIONS;
 
+// Azure 設定
+export const AZURE_SPEECH_KEY = process.env.AZURE_SPEECH_KEY;
+export const AZURE_SPEECH_REGION = process.env.AZURE_SPEECH_REGION ?? 'japaneast';
+export const AZURE_SPEECH_VOICE = process.env.AZURE_SPEECH_VOICE ?? 'ja-JP-NaokiNeural';
+
+// Whisper検証の有効/無効。Azure は安定しているのでデフォルト false。
+// openai 使用時は true（不安定なのでリトライが効く）。
+const VERIFY_DEFAULT = TTS_PROVIDER === 'openai';
+export const TTS_VERIFY = process.env.TTS_VERIFY
+  ? process.env.TTS_VERIFY.toLowerCase() === 'true'
+  : VERIFY_DEFAULT;
+
 console.log(
-  `[TTS config] model=${TTS_MODEL} voice=${TTS_VOICE}` +
-    (TTS_INSTRUCTIONS ? ` instructions="${TTS_INSTRUCTIONS.slice(0, 40)}..."` : ''),
+  `[TTS config] provider=${TTS_PROVIDER} ` +
+    (TTS_PROVIDER === 'azure'
+      ? `voice=${AZURE_SPEECH_VOICE} region=${AZURE_SPEECH_REGION}`
+      : `model=${TTS_MODEL} voice=${TTS_VOICE}`) +
+    ` verify=${TTS_VERIFY}`,
 );
+
+if (TTS_PROVIDER === 'azure' && !AZURE_SPEECH_KEY) {
+  console.warn(
+    '[TTS config] AZURE_SPEECH_KEY が未設定です。/api/tts 呼び出し時にエラーになります。',
+  );
+}
 
 export type GeneratedChunk = Chunk & {
   mp3: Buffer;
@@ -115,6 +137,25 @@ async function ttsChunksInParallel(
     const history: VerifyResult[] = [];
     /** 最良試行を保持（ok優先、次に類似度の高さ） */
     let best: { mp3: Buffer; verify: VerifyResult } | undefined;
+
+    // 検証無効モード（Azure 等で安定している場合）: 1回生成して即返す
+    if (!TTS_VERIFY) {
+      const t0 = Date.now();
+      const mp3 = await ttsSingle(chunk.text);
+      const ttsMs = Date.now() - t0;
+      const verify: VerifyResult = {
+        ok: true,
+        similarity: 1,
+        maxGap: 0,
+        transcript: '[verify-disabled]',
+        reason: 'verify-disabled',
+      };
+      console.log(
+        `[TTS chunk ${chunk.index}/${total - 1}] ` +
+          `${chunk.text.length}ch → ${mp3.length}B (tts ${ttsMs}ms, w${workerId}) verify off`,
+      );
+      return { ...chunk, mp3, attempts: 1, verification: verify, history: [verify] };
+    }
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       const variantText = applyRetryVariant(chunk.text, attempt);
@@ -276,6 +317,13 @@ function applyRetryVariant(text: string, attempt: number): string {
 }
 
 async function ttsSingle(text: string): Promise<Buffer> {
+  if (TTS_PROVIDER === 'azure') {
+    return ttsSingleAzure(text);
+  }
+  return ttsSingleOpenAI(text);
+}
+
+async function ttsSingleOpenAI(text: string): Promise<Buffer> {
   const params: Parameters<typeof openai.audio.speech.create>[0] = {
     model: TTS_MODEL,
     voice: TTS_VOICE as Parameters<typeof openai.audio.speech.create>[0]['voice'],
@@ -286,6 +334,40 @@ async function ttsSingle(text: string): Promise<Buffer> {
   }
   const mp3 = await openai.audio.speech.create(params);
   return Buffer.from(await mp3.arrayBuffer());
+}
+
+function escapeXml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+async function ttsSingleAzure(text: string): Promise<Buffer> {
+  if (!AZURE_SPEECH_KEY) {
+    throw new Error('AZURE_SPEECH_KEY is not set');
+  }
+  const endpoint = `https://${AZURE_SPEECH_REGION}.tts.speech.microsoft.com/cognitiveservices/v1`;
+  const ssml = `<speak version='1.0' xml:lang='ja-JP'>
+  <voice name='${AZURE_SPEECH_VOICE}'>${escapeXml(text)}</voice>
+</speak>`;
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Ocp-Apim-Subscription-Key': AZURE_SPEECH_KEY,
+      'Content-Type': 'application/ssml+xml',
+      'X-Microsoft-OutputFormat': 'audio-24khz-160kbitrate-mono-mp3',
+      'User-Agent': 'redial-timeslip-dj',
+    },
+    body: ssml,
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Azure TTS ${res.status}: ${body.slice(0, 300)}`);
+  }
+  return Buffer.from(await res.arrayBuffer());
 }
 
 /**

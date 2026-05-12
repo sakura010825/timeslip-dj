@@ -15,8 +15,10 @@ import { sanitizeForTTS } from '@/lib/tts-sanitize';
 import {
   generateSingleChunkMp3,
   concatChunksToMp3,
+  TTS_PROVIDER,
   TTS_MODEL,
   TTS_VOICE,
+  AZURE_SPEECH_VOICE,
 } from '@/lib/tts-pipeline';
 
 const ARCHIVE_ROOT = path.resolve(process.cwd(), '.tts-archive');
@@ -127,8 +129,10 @@ export async function POST(req: Request) {
     (meta as Record<string, unknown>).lastEdit = {
       chunkIndex,
       ttsMs,
-      model: TTS_MODEL,
-      voice: TTS_VOICE,
+      provider: TTS_PROVIDER,
+      ...(TTS_PROVIDER === 'azure'
+        ? { voice: AZURE_SPEECH_VOICE }
+        : { model: TTS_MODEL, voice: TTS_VOICE }),
       sanitizeWarnings,
     };
 

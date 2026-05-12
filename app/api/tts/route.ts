@@ -4,9 +4,13 @@ import path from 'path';
 import { sanitizeForTTS } from '@/lib/tts-sanitize';
 import {
   runTTSPipeline,
+  TTS_PROVIDER,
   TTS_MODEL,
   TTS_VOICE,
   TTS_INSTRUCTIONS,
+  AZURE_SPEECH_VOICE,
+  AZURE_SPEECH_REGION,
+  TTS_VERIFY,
 } from '@/lib/tts-pipeline';
 
 const ARCHIVE_ROOT = path.resolve(process.cwd(), '.tts-archive');
@@ -87,11 +91,20 @@ function saveArchive(a: ArchiveInput) {
 
     const meta = {
       timestamp: new Date().toISOString(),
-      tts: {
-        model: TTS_MODEL,
-        voice: TTS_VOICE,
-        instructions: TTS_INSTRUCTIONS ?? null,
-      },
+      tts: TTS_PROVIDER === 'azure'
+        ? {
+            provider: 'azure',
+            voice: AZURE_SPEECH_VOICE,
+            region: AZURE_SPEECH_REGION,
+            verify: TTS_VERIFY,
+          }
+        : {
+            provider: 'openai',
+            model: TTS_MODEL,
+            voice: TTS_VOICE,
+            instructions: TTS_INSTRUCTIONS ?? null,
+            verify: TTS_VERIFY,
+          },
       rawLength: a.rawText.length,
       cleanLength: a.cleanText.length,
       outputBytes: a.finalMp3.length,
