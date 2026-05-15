@@ -1,15 +1,22 @@
 /**
  * 編集済みエピソードを redial/data/stock/ にストック化する。
  *
- * 4セグメント分の archive ID を引数に取り、整理コピーする。
+ * 走馬灯型は5セグメント（opening / middle1 / middle2 / ending前半 / ending後半）。
+ * 旧型は4セグメント（opening / middle1 / middle2 / ending）にも対応。
  *
- * 使い方:
+ * 使い方（走馬灯型・5セグメント）:
+ *   node scripts/stockize-episode.mjs \
+ *     --slug 2000-autumn \
+ *     --seg0 2026-05-15_15-42-13_seg0 \
+ *     --seg1 2026-05-15_15-44-12_seg1 \
+ *     --seg2 2026-05-15_15-46-53_seg2 \
+ *     --seg3 2026-05-15_15-49-18_seg3 \
+ *     --seg4 2026-05-15_15-50-40_seg4
+ *
+ * 使い方（旧型・4セグメント）:
  *   node scripts/stockize-episode.mjs \
  *     --slug 1995-autumn-09 \
- *     --seg0 2026-05-11_13-53-35_seg0 \
- *     --seg1 2026-05-11_13-57-00_seg1 \
- *     --seg2 2026-05-11_14-07-33_seg2 \
- *     --seg3 2026-05-11_14-19-42_seg3
+ *     --seg0 ... --seg1 ... --seg2 ... --seg3 ...
  */
 
 import fs from 'node:fs';
@@ -20,9 +27,12 @@ const STOCK_ROOT = path.resolve(process.cwd(), '..', 'redial', 'data', 'stock');
 
 const args = parseArgs(process.argv.slice(2));
 if (!args.slug || !args.seg0 || !args.seg1 || !args.seg2 || !args.seg3) {
-  console.error('usage: --slug <name> --seg0 <id> --seg1 <id> --seg2 <id> --seg3 <id>');
+  console.error('usage: --slug <name> --seg0 <id> --seg1 <id> --seg2 <id> --seg3 <id> [--seg4 <id>]');
   process.exit(1);
 }
+
+const isWalkingFlame = !!args.seg4;
+const segIndices = isWalkingFlame ? [0, 1, 2, 3, 4] : [0, 1, 2, 3];
 
 const stockDir = path.join(STOCK_ROOT, args.slug);
 fs.mkdirSync(path.join(stockDir, 'segments'), { recursive: true });
@@ -30,14 +40,22 @@ fs.mkdirSync(path.join(stockDir, 'scripts'), { recursive: true });
 fs.mkdirSync(path.join(stockDir, 'source-archives'), { recursive: true });
 
 const segMetas = [];
-const SEG_NAMES = {
+const SEG_NAMES_LEGACY = {
   0: { name: 'opening', label: 'オープニング' },
   1: { name: 'middle-talk-1', label: 'ミドルトーク1' },
   2: { name: 'middle-talk-2', label: 'ミドルトーク2' },
   3: { name: 'ending', label: 'エンディング' },
 };
+const SEG_NAMES_WALKING_FLAME = {
+  0: { name: 'opening', label: 'オープニング' },
+  1: { name: 'middle-talk-1', label: 'ミドルトーク1' },
+  2: { name: 'middle-talk-2', label: 'ミドルトーク2' },
+  3: { name: 'ending-1', label: 'エンディング前半' },
+  4: { name: 'ending-2', label: 'エンディング後半' },
+};
+const SEG_NAMES = isWalkingFlame ? SEG_NAMES_WALKING_FLAME : SEG_NAMES_LEGACY;
 
-for (const segIdx of [0, 1, 2, 3]) {
+for (const segIdx of segIndices) {
   const archiveId = args[`seg${segIdx}`];
   const src = path.join(ARCHIVE_ROOT, archiveId);
   if (!fs.existsSync(src)) {
@@ -95,6 +113,7 @@ for (const segIdx of [0, 1, 2, 3]) {
 // 5) ストック全体の meta を生成
 const stockMeta = {
   slug: args.slug,
+  format: isWalkingFlame ? 'walking-flame-v1' : 'legacy-v1',
   generatedBy: 'scripts/stockize-episode.mjs',
   stockizedAt: new Date().toISOString(),
   segments: segMetas,
