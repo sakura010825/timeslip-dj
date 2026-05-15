@@ -40,6 +40,9 @@ export const PRONUNCIATION_DICT: PronunciationEntry[] = [
   { pattern: 'F1', replacement: 'エフワン', note: 'F1の読み誤り対策' },
   { pattern: 'KAN', replacement: 'カン', note: 'シンガーKAN。Azureが英語読みする' },
   { pattern: 'JAL', replacement: 'ジャル', note: '航空会社名。略語の英語読み回避' },
+  // 2026-05-15 走馬灯型試作（1990秋10月）で確認された誤読
+  { pattern: 'ジェイエイエル', replacement: 'ジャル', note: 'Claudeが独自にJALをカタカナ化した場合、Azureが「ジェイエイエル」を音節読みで破綻させるための保険' },
+  { pattern: '麻布', replacement: 'あざぶ', note: 'Azureが「あさの」と誤読' },
 ];
 
 /**

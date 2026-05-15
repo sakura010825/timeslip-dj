@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     const season: string = body.season ?? monthToSeason(Number(body.month));
 
     const kb = loadKnowledgeBase(yearNum, season);
-    const topics = selectTopics(kb.items, 5);
+    const topics = selectTopics(kb.items, 8);
     // 楽曲は知識ベース全体のmusicカテゴリから選ばせる
     // （selectTopics で選ばれた 5項目だけだと music が含まれない可能性があるため）
     const musicPool = kb.items.filter((i) => i.category === 'music');

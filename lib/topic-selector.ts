@@ -8,11 +8,11 @@ const IMPORTANCE_WEIGHT = {
 
 /**
  * 知識ベースから1エピソード分のトピックを選出する。
- * - デフォルト5項目
+ * - デフォルト8項目（走馬灯型: 1セグメント3〜4テーマ×3トーク枠＋振り返り）
  * - カテゴリの重複を避ける（同カテゴリを2つ選ぶのは他に候補が尽きたときのみ）
  * - importance による重み付きランダム
  */
-export function selectTopics(items: KnowledgeItem[], count: number = 5): KnowledgeItem[] {
+export function selectTopics(items: KnowledgeItem[], count: number = 8): KnowledgeItem[] {
   const pool = items.map((item) => ({
     item,
     weight: IMPORTANCE_WEIGHT[item.importance] ?? 1,
