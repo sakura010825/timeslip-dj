@@ -1,18 +1,19 @@
 /**
  * TTS誤読対策辞書
  *
- * OpenAI tts-1-hd (onyx) の既知の誤読を、送信前にカタカナ/ひらがな表記へ置換する。
+ * Azure / OpenAI TTS の既知の誤読を、送信前にカタカナ/ひらがな表記へ置換する。
  * Whisper検証も置換後テキストに対して行うため、ここを通したテキストが「正解」として扱われる。
  *
  * 追加方針:
  *  - .tts-archive/ の入出力ペアを聴いて誤読が確認できたものを追加
  *  - 一般的な単語は追加しない（過剰置換で別の誤読を生む）
  *  - 固有名詞・難読語に絞る
+ *  - 過剰置換のリスクがある短い表記は正規表現で文脈限定する
  */
 
 export type PronunciationEntry = {
-  /** マッチさせる元表記 */
-  pattern: string;
+  /** マッチさせる元表記。string はリテラル一致、RegExp は正規表現。RegExp は g フラグ推奨 */
+  pattern: string | RegExp;
   /** 置換後の読み（カタカナまたはひらがな） */
   replacement: string;
   /** メモ（誤読の確認元など） */
@@ -43,11 +44,16 @@ export const PRONUNCIATION_DICT: PronunciationEntry[] = [
   // 2026-05-15 走馬灯型試作（1990秋10月）で確認された誤読
   { pattern: 'ジェイエイエル', replacement: 'ジャル', note: 'Claudeが独自にJALをカタカナ化した場合、Azureが「ジェイエイエル」を音節読みで破綻させるための保険' },
   { pattern: '麻布', replacement: 'あざぶ', note: 'Azureが「あさの」と誤読' },
+  // 2026-05-22 1995夏/2000夏/1990夏セッションで繰り返し修正対象になった
+  // フジテレビの「月曜9時ドラマ」枠の表記。Azureが「げつく」と読めない
+  // 過剰置換回避: 直後が「日/月/年」（日付表現）の場合は対象外
+  { pattern: /月9(?![日月年])/g, replacement: 'げつく', note: '月曜9時ドラマ枠。「○月9日」等の日付表現は対象外（負の先読み）' },
+  { pattern: '月九', replacement: 'げつく', note: '「月9」の漢字表記。月九・げつく' },
 ];
 
 /**
  * テキストに誤読辞書を適用する。
- * 単純な文字列置換（正規表現エスケープ不要なリテラルマッチ）。
+ * string パターンはリテラル置換、RegExp パターンは正規表現置換。
  */
 export function applyPronunciationDict(input: string): {
   output: string;
@@ -57,10 +63,20 @@ export function applyPronunciationDict(input: string): {
   const applied: { pattern: string; count: number }[] = [];
 
   for (const entry of PRONUNCIATION_DICT) {
-    const occurrences = countOccurrences(output, entry.pattern);
-    if (occurrences > 0) {
-      output = output.split(entry.pattern).join(entry.replacement);
-      applied.push({ pattern: entry.pattern, count: occurrences });
+    if (typeof entry.pattern === 'string') {
+      const occurrences = countOccurrences(output, entry.pattern);
+      if (occurrences > 0) {
+        output = output.split(entry.pattern).join(entry.replacement);
+        applied.push({ pattern: entry.pattern, count: occurrences });
+      }
+    } else {
+      // RegExp: マッチ数を数えてから置換
+      const matches = output.match(entry.pattern);
+      const count = matches ? matches.length : 0;
+      if (count > 0) {
+        output = output.replace(entry.pattern, entry.replacement);
+        applied.push({ pattern: entry.pattern.toString(), count });
+      }
     }
   }
 
