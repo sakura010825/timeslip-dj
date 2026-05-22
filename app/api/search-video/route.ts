@@ -6,8 +6,19 @@ type Candidate = { videoId: string; embeddable: boolean };
 type Song = { artistName: string; songTitle: string; candidates: Candidate[] };
 type Curated = { songs: Song[] };
 
+/**
+ * 楽曲タイトル・アーティスト名の照合用正規化。
+ * - 空白除去
+ * - 〜/～ を ~ に統一
+ * - スラッシュ（／・/）で区切られた A面/B面表記の前半のみを採用
+ *   例: "LOVE LOVE LOVE／嵐が来る" → "lovelovelove"
+ * - 小文字化
+ */
 const normalize = (s: string): string =>
-  s.replace(/\s+/g, '').replace(/[〜～]/g, '~').toLowerCase();
+  s.split(/[／/]/)[0]
+    .replace(/\s+/g, '')
+    .replace(/[〜～]/g, '~')
+    .toLowerCase();
 
 function findCurated(year: string, artistName: string, songTitle: string): string | null {
   if (!year || !artistName || !songTitle) return null;
