@@ -185,7 +185,12 @@ export default function Home() {
       const res = await fetch('/api/search-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ q: query }),
+        body: JSON.stringify({
+          q: query,
+          year,
+          artistName: song.artistName,
+          songTitle: song.songTitle,
+        }),
       });
       const data = await res.json();
       if (data.videoId) {
