@@ -154,6 +154,32 @@ export default function Home() {
     URL.revokeObjectURL(url);
   };
 
+  /**
+   * 過去にダウンロードした script JSON をインポートして、segments を復元する。
+   * 再生成せずに TTS〜編集〜ストック化に進めるための救済機能。
+   */
+  const importScript = async (file: File) => {
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (!Array.isArray(data.segments) || data.segments.length === 0) {
+        alert('インポート失敗: segments が空、または配列ではありません');
+        return;
+      }
+      if (data.year) setYear(String(data.year));
+      if (data.month) setMonth(String(data.month));
+      setSegments(data.segments);
+      setCurrentIndex(0);
+      setCurrentVideoId(null);
+      setArchives({});
+      setTtsGenerating({});
+      console.log(`[importScript] loaded ${data.segments.length} segments, year=${data.year}, month=${data.month}`);
+    } catch (e) {
+      console.error('[importScript] error:', e);
+      alert(`インポート失敗: ${e instanceof Error ? e.message : 'unknown'}`);
+    }
+  };
+
   const generateProgram = async () => {
     setIsLoading(true);
     setSegments([]);
@@ -468,6 +494,19 @@ export default function Home() {
             <button onClick={generateProgram} disabled={isLoading} className="bg-yellow-600 hover:bg-yellow-500 text-white font-black py-3 px-8 rounded-full text-lg disabled:opacity-30 transition-all">
               {isLoading ? '構成作成中...' : '番組をフル生成'}
             </button>
+            <label className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-5 rounded-full text-sm cursor-pointer transition-all">
+              JSONから復元
+              <input
+                type="file"
+                accept="application/json,.json"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) importScript(f);
+                  e.target.value = '';
+                }}
+              />
+            </label>
             {/* モード切り替え */}
             <div className="flex items-center gap-2 bg-gray-800 rounded-full p-1 border border-gray-700">
               <button
