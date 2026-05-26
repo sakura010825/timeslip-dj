@@ -49,6 +49,11 @@ export const PRONUNCIATION_DICT: PronunciationEntry[] = [
   // 過剰置換回避: 直後が「日/月/年」（日付表現）の場合は対象外
   { pattern: /月9(?![日月年])/g, replacement: 'げつく', note: '月曜9時ドラマ枠。「○月9日」等の日付表現は対象外（負の先読み）' },
   { pattern: '月九', replacement: 'げつく', note: '「月9」の漢字表記。月九・げつく' },
+  // 2026-05-26 1995冬で確認された誤読
+  { pattern: 'Windows 95', replacement: 'ウィンドウズきゅうじゅうご', note: 'Azureが「ウィンドウズナインティファイブ」と英語読みする' },
+  { pattern: 'Windows95', replacement: 'ウィンドウズきゅうじゅうご', note: 'スペースなし表記の保険' },
+  { pattern: 'ウィンドウズナインティファイブ', replacement: 'ウィンドウズきゅうじゅうご', note: 'Claudeが先回りカタカナ化した場合の保険' },
+  { pattern: 'ウィンドウズ95', replacement: 'ウィンドウズきゅうじゅうご', note: '混在表記の保険' },
 ];
 
 /**
