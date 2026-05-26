@@ -24,15 +24,90 @@ import path from 'node:path';
 
 const ARCHIVE_ROOT = path.resolve(process.cwd(), '.tts-archive');
 const STOCK_ROOT = path.resolve(process.cwd(), '..', 'redial', 'data', 'stock');
+const SCRIPTS_ROOT = path.resolve(process.cwd(), '..', 'redial', 'data', 'scripts');
+const YT_CANDIDATES_ROOT = path.resolve(process.cwd(), '..', 'redial', 'data', 'youtube-candidates');
 
 const args = parseArgs(process.argv.slice(2));
 if (!args.slug || !args.seg0 || !args.seg1 || !args.seg2 || !args.seg3) {
   console.error('usage: --slug <name> --seg0 <id> --seg1 <id> --seg2 <id> --seg3 <id> [--seg4 <id>]');
+  console.error('  --script <path>  optional: scripts/{slug}-v1.json で songAfter を補完');
   process.exit(1);
 }
 
 const isWalkingFlame = !!args.seg4;
 const segIndices = isWalkingFlame ? [0, 1, 2, 3, 4] : [0, 1, 2, 3];
+
+// ─── 楽曲メタデータの解決 ────────────────────────────────
+// 優先順:
+//   1. --script で渡された v1.json から segments[N].songTitle/artistName を取得
+//   2. それがなければ data/scripts/{slug}-v1.json を自動探索
+//   3. videoId は data/youtube-candidates/{year}.json からマッチング
+//   4. なければ null（再生時に動的検索フォールバック）
+const scriptPath = args.script ?? path.join(SCRIPTS_ROOT, `${args.slug}-v1.json`);
+let scriptData = null;
+if (fs.existsSync(scriptPath)) {
+  try {
+    scriptData = JSON.parse(fs.readFileSync(scriptPath, 'utf8'));
+    console.log(`[script] loaded songs from ${scriptPath}`);
+  } catch (e) {
+    console.warn(`[script] failed to parse ${scriptPath}: ${e.message}`);
+  }
+} else {
+  console.warn(`[script] not found: ${scriptPath} — songAfter will be null`);
+}
+
+// YouTube candidates は year-prefix からファイルを推定
+const yearMatch = args.slug.match(/^(\d{4})-/);
+const candidatesPath = yearMatch
+  ? path.join(YT_CANDIDATES_ROOT, `${yearMatch[1]}.json`)
+  : null;
+let ytCandidates = [];
+if (candidatesPath && fs.existsSync(candidatesPath)) {
+  try {
+    const data = JSON.parse(fs.readFileSync(candidatesPath, 'utf8'));
+    ytCandidates = Array.isArray(data) ? data : data.candidates ?? [];
+    console.log(`[yt-candidates] loaded ${ytCandidates.length} entries from ${candidatesPath}`);
+  } catch (e) {
+    console.warn(`[yt-candidates] failed to parse: ${e.message}`);
+  }
+}
+
+function resolveSongAfter(segIdx) {
+  if (!scriptData?.segments) return null;
+  const seg = scriptData.segments[segIdx];
+  if (!seg?.songTitle || !seg?.artistName) return null;
+  const title = seg.songTitle;
+  const artist = seg.artistName;
+  // YouTube candidate からタイトル+アーティストでマッチング
+  const cand = ytCandidates.find((c) => matchSong(c, title, artist));
+  return {
+    title,
+    artist,
+    videoId: cand?.videoId ?? null,
+    curatedAt: cand ? new Date().toISOString().slice(0, 10) : null,
+  };
+}
+
+/** タイトル正規化（既存のsearch-video curation と同じロジックを簡略再現） */
+function normTitle(s) {
+  return s
+    .toLowerCase()
+    .replace(/[／/].*$/, '') // A面/B面表記の除去
+    .replace(/[「」『』〜～\s'"]/g, '')
+    .replace(/[ぁ-んァ-ヶ]/g, (c) => c) // 平仮名/カタカナ吸収は省略（必要なら拡張）
+    .trim();
+}
+
+function matchSong(cand, title, artist) {
+  if (!cand) return false;
+  const candTitle = cand.title ?? cand.songTitle ?? '';
+  const candArtist = cand.artist ?? cand.artistName ?? '';
+  return (
+    normTitle(candTitle) === normTitle(title) &&
+    normTitle(candArtist) === normTitle(artist)
+  );
+}
+// ──────────────────────────────────────────────────────
 
 const stockDir = path.join(STOCK_ROOT, args.slug);
 fs.mkdirSync(path.join(stockDir, 'segments'), { recursive: true });
@@ -85,6 +160,7 @@ for (const segIdx of segIndices) {
 
   // 4) サマリ情報を蓄積
   const editedChunks = meta.chunks.filter((c) => c.editedAt);
+  const songAfter = resolveSongAfter(segIdx);
   segMetas.push({
     segmentIndex: segIdx,
     segmentName: segName,
@@ -103,10 +179,16 @@ for (const segIdx of segIndices) {
     })),
     ttsModel: meta.tts?.model,
     ttsVoice: meta.tts?.voice,
+    songAfter,
   });
 
+  const songInfo = songAfter
+    ? ` / song: ${songAfter.title} - ${songAfter.artist}${songAfter.videoId ? ' ['+songAfter.videoId+']' : ' (videoId未取得)'}`
+    : segIdx === 4 || (!isWalkingFlame && segIdx === 3)
+    ? ' (ending segment, no song)'
+    : ' (no song info)';
   console.log(
-    `[seg${segIdx}] ${segLabel}: copied (${meta.chunks.length} chunks, ${editedChunks.length} edited)`,
+    `[seg${segIdx}] ${segLabel}: copied (${meta.chunks.length} chunks, ${editedChunks.length} edited)${songInfo}`,
   );
 }
 
