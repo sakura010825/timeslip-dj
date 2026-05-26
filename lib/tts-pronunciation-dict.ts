@@ -53,7 +53,14 @@ export const PRONUNCIATION_DICT: PronunciationEntry[] = [
   { pattern: 'Windows 95', replacement: 'ウィンドウズきゅうじゅうご', note: 'Azureが「ウィンドウズナインティファイブ」と英語読みする' },
   { pattern: 'Windows95', replacement: 'ウィンドウズきゅうじゅうご', note: 'スペースなし表記の保険' },
   { pattern: 'ウィンドウズナインティファイブ', replacement: 'ウィンドウズきゅうじゅうご', note: 'Claudeが先回りカタカナ化した場合の保険' },
+  { pattern: 'ウィンドウズ・ナインティファイブ', replacement: 'ウィンドウズきゅうじゅうご', note: '中黒入りの場合（2000冬で誤読確認）' },
   { pattern: 'ウィンドウズ95', replacement: 'ウィンドウズきゅうじゅうご', note: '混在表記の保険' },
+  // 2026-05-26 1990冬・2000冬で確認された誤読
+  { pattern: 'フエム', replacement: 'エフエム', note: 'ClaudeがFMを「フエム」と先回りカタカナ化するパターン。実体としての日本語「フエム」は存在しないため安全に置換可' },
+  { pattern: 'ケイエイエヌ', replacement: 'カン', note: 'シンガーKANを「ケイエイエヌ」と先回りカタカナ化されたケース。dictで先にKAN→カンを定義してあるが、Claude側でカタカナ化された後は別ルールが必要' },
+  { pattern: 'ダイヤモンズ', replacement: 'ダイヤモンド', note: 'プリンセス・プリンセス「Diamonds」を「ダイヤモンズ」と複数形読みされるのを単数形へ統一' },
+  { pattern: '同い年', replacement: 'おないどし', note: 'Azureが「どういどし」と誤読する場合あり、明示的にひらがな化' },
+  { pattern: '前の年', replacement: '前のとし', note: 'Azureが「まえのねん」と読みがちな箇所を「とし」へ。日付表現の「○○年」とは衝突しないリテラル一致' },
 ];
 
 /**
