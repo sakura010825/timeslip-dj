@@ -45,3 +45,7 @@ next-env.d.ts
 
 # TTS provider evaluation samples (比較試聴用・コミットしない)
 /.tts-eval/
+/.tts-variant-test/
+
+# .env.local の手動バックアップ（Azure復帰用など）
+.env.local.backup-*
