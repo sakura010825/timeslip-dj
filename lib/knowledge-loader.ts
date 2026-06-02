@@ -15,6 +15,14 @@ export type KnowledgeItem = {
   keywords: string[];
   importance: KnowledgeImportance;
   usedInEpisodes: string[];
+  /** Phase 2「データの再設計」: WebSearch検証済みか（false/未設定は生成に使わせない運用） */
+  verified?: boolean;
+  /** 検証の出典（再検証コスト削減・信頼性の記録） */
+  sources?: string[];
+  /** DJがほぼそのまま喋れる検証済みの言い回し（生成時の発明の余地を減らす） */
+  speakableContext?: string;
+  /** 既知の罠ガード（例:「出演者は松嶋菜々子・堤真一のみ」「歌詞は引用しない」） */
+  doNotSay?: string[];
 };
 
 export type KnowledgeBase = {
