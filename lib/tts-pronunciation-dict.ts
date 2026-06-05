@@ -61,6 +61,11 @@ export const PRONUNCIATION_DICT: PronunciationEntry[] = [
   { pattern: 'ダイヤモンズ', replacement: 'ダイヤモンド', note: 'プリンセス・プリンセス「Diamonds」を「ダイヤモンズ」と複数形読みされるのを単数形へ統一' },
   { pattern: '同い年', replacement: 'おないどし', note: 'Azureが「どういどし」と誤読する場合あり、明示的にひらがな化' },
   { pattern: '前の年', replacement: '前のとし', note: 'Azureが「まえのねん」と読みがちな箇所を「とし」へ。日付表現の「○○年」とは衝突しないリテラル一致' },
+  // 2026-06-05 1985春で確認された誤読（hideさん試聴）
+  { pattern: '掛布', replacement: 'かけふ', note: '阪神・掛布雅之。「掛布」が読めず誤読（正: かけふ）' },
+  { pattern: '彰布', replacement: 'あきのぶ', note: '阪神・岡田彰布の「彰布」。岡田は読めるが彰布が破綻するため彰布のみ置換（おかだ・あきのぶ）' },
+  { pattern: '村さ来', replacement: 'むらさき', note: '居酒屋チェーン。「村さ来」を誤読（正: むらさき）' },
+  { pattern: '明石家', replacement: 'あかしや', note: '明石家さんま。「明石家」を誤読（正: あかしや）' },
 ];
 
 /**
