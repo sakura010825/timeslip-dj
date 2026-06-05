@@ -86,15 +86,17 @@ ${scriptText}
     { "claim": "<台本中の根拠なき主張>", "severity": "critical", "reason": "<素材に無い/矛盾 等の理由>" }
   ]
 }
-根拠なき主張が一つも無ければ {"ungrounded": []} を返してください。`;
+根拠なき主張が一つも無ければ {"ungrounded": []} を返してください。
+出力するJSONは最終結果の1つだけにしてください。考え直しの過程・訂正前のJSON・複数のコードブロックを出力しないこと。挙げるか迷った主張は、最終のJSONに含めるか含めないかを自分で決め、その1つのJSONだけを返してください。`;
 }
 
 /** Claudeの出力テキストからJSONを抽出（route.ts と同じ作法）。 */
 function extractJson(text: string): unknown {
   const trimmed = text.trim();
-  const fenceMatch = trimmed.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
-  if (fenceMatch) {
-    return JSON.parse(fenceMatch[1]);
+  // 検証官が「考え直し」で複数のJSONフェンスを出すことがあるため、最後のフェンス（＝最終結果）を採用する
+  const fences = [...trimmed.matchAll(/```(?:json)?\s*\n?([\s\S]*?)\n?```/g)];
+  if (fences.length > 0) {
+    return JSON.parse(fences[fences.length - 1][1]);
   }
   const firstBrace = trimmed.indexOf('{');
   const lastBrace = trimmed.lastIndexOf('}');

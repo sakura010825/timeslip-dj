@@ -72,13 +72,14 @@ ${scriptText}
     { "claim": "<台本中の根拠なき主張>", "severity": "critical", "reason": "<素材に無い/矛盾 等の理由>" }
   ]
 }
-根拠なき主張が一つも無ければ {"ungrounded": []} を返してください。`;
+根拠なき主張が一つも無ければ {"ungrounded": []} を返してください。
+出力するJSONは最終結果の1つだけにしてください。考え直しの過程・訂正前のJSON・複数のコードブロックを出力しないこと。`;
 }
 
 function extractJson(text) {
   const t = text.trim();
-  const fence = t.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
-  if (fence) return JSON.parse(fence[1]);
+  const fences = [...t.matchAll(/```(?:json)?\s*\n?([\s\S]*?)\n?```/g)];
+  if (fences.length > 0) return JSON.parse(fences[fences.length - 1][1]);
   const f = t.indexOf('{'), l = t.lastIndexOf('}');
   if (f >= 0 && l > f) return JSON.parse(t.substring(f, l + 1));
   return JSON.parse(t);
