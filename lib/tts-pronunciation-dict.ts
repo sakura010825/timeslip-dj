@@ -82,6 +82,7 @@ export const PRONUNCIATION_DICT: PronunciationEntry[] = [
   { pattern: '印刷', replacement: 'いんさつ', note: '「印刷されていた」を「うんさつ」と誤読（正: いんさつ）' },
   { pattern: '所作', replacement: 'しょさ', note: '「しょさく」と誤読の疑い（2ロール連続でWhisperが初作と書き起こし）' },
   { pattern: '滲み', replacement: 'にじみ', note: '「滲み込んで」の読みが2ロール連続で不安定（Whisperがみじみと書き起こし）。にじみへ固定' },
+  { pattern: '三月', replacement: 'さんがつ', note: '「三月に」を「みかつ」系に誤読（チャンク/全文Whisperが独立に検出）。月名の漢数字は誤読リスクが高い' },
 ];
 
 /**
