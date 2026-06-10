@@ -75,6 +75,13 @@ export const PRONUNCIATION_DICT: PronunciationEntry[] = [
   { pattern: '筑紫哲也', replacement: 'ちくしてつや', note: 'Whisperが「少し徹夜」と書き起こし=読み破綻の疑い（正: ちくしてつや）' },
   { pattern: '産声', replacement: 'うぶごえ', note: 'Whisperが「海声」と書き起こし=読み破綻の疑い（正: うぶごえ）' },
   { pattern: '1986年の春', replacement: 'せんきゅうひゃくはちじゅうろく年の春', note: '文頭の「1986年の春」を「にせんきゅうひゃく…」と誤読（seg3/seg4で確認）。この定型句に限定してかな化。他年で再発したら一般化を検討' },
+  // 2026-06-10 1986春の再ロールで新規混入した誤読（Whisper検査）。いずれも読みが一意で置換による副作用なし
+  { pattern: 'ダイアナ妃', replacement: 'ダイアナひ', note: '再ロールで「ダイアナひめ」と誤読（正: ダイアナひ）。フレーズ限定' },
+  { pattern: '躍っ', replacement: 'おどっ', note: '「新聞に躍って」を「やごって」と誤読（正: おどって）。躍動(やくどう)は「っ」が続かないため衝突しない' },
+  { pattern: '休場', replacement: 'きゅうじょう', note: '「途中休場」を「きゅうじょ」と誤読の疑い（Whisperが救助と書き起こし）。相撲ネタで頻出のため恒久化' },
+  { pattern: '印刷', replacement: 'いんさつ', note: '「印刷されていた」を「うんさつ」と誤読（正: いんさつ）' },
+  { pattern: '所作', replacement: 'しょさ', note: '「しょさく」と誤読の疑い（2ロール連続でWhisperが初作と書き起こし）' },
+  { pattern: '滲み', replacement: 'にじみ', note: '「滲み込んで」の読みが2ロール連続で不安定（Whisperがみじみと書き起こし）。にじみへ固定' },
 ];
 
 /**
