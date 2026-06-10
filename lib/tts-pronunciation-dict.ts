@@ -48,7 +48,7 @@ export const PRONUNCIATION_DICT: PronunciationEntry[] = [
   // フジテレビの「月曜9時ドラマ」枠の表記。Azureが「げつく」と読めない
   // 過剰置換回避: 直後が「日/月/年」（日付表現）の場合は対象外
   { pattern: /月9(?![日月年])/g, replacement: 'げつく', note: '月曜9時ドラマ枠。「○月9日」等の日付表現は対象外（負の先読み）' },
-  { pattern: '月九', replacement: 'げつく', note: '「月9」の漢字表記。月九・げつく' },
+  { pattern: /月九(?![日月年])/g, replacement: 'げつく', note: '「月9」の漢字表記。月九・げつく。日付ガード: 「五月九日」等の漢数字日付に過剰マッチしないよう負の先読み（2026-06-10 1986春seg2で実害確認）' },
   // 2026-05-26 1995冬で確認された誤読
   { pattern: 'Windows 95', replacement: 'ウィンドウズきゅうじゅうご', note: 'Azureが「ウィンドウズナインティファイブ」と英語読みする' },
   { pattern: 'Windows95', replacement: 'ウィンドウズきゅうじゅうご', note: 'スペースなし表記の保険' },
