@@ -66,6 +66,10 @@ export const PRONUNCIATION_DICT: PronunciationEntry[] = [
   { pattern: '彰布', replacement: 'あきのぶ', note: '阪神・岡田彰布の「彰布」。岡田は読めるが彰布が破綻するため彰布のみ置換（おかだ・あきのぶ）' },
   { pattern: '村さ来', replacement: 'むらさき', note: '居酒屋チェーン。「村さ来」を誤読（正: むらさき）' },
   { pattern: '明石家', replacement: 'あかしや', note: '明石家さんま。「明石家」を誤読（正: あかしや）' },
+  // 2026-06-10 1986春で確認された誤読（hideさん試聴）
+  { pattern: '手繰', replacement: 'たぐ', note: '「手繰って」を「てぐって」と誤読（正: たぐって）。手繰る/手繰り含め常に「たぐ」' },
+  { pattern: '工藤公康', replacement: 'くどうきみやす', note: '西武・工藤公康。「くどうこうやす」と誤読（正: きみやす）' },
+  { pattern: '阿部寛', replacement: 'あべひろし', note: '俳優・阿部寛。「あべひらん」と誤読（正: あべひろし）' },
 ];
 
 /**
