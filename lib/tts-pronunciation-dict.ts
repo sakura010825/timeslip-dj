@@ -70,6 +70,11 @@ export const PRONUNCIATION_DICT: PronunciationEntry[] = [
   { pattern: '手繰', replacement: 'たぐ', note: '「手繰って」を「てぐって」と誤読（正: たぐって）。手繰る/手繰り含め常に「たぐ」' },
   { pattern: '工藤公康', replacement: 'くどうきみやす', note: '西武・工藤公康。「くどうこうやす」と誤読（正: きみやす）' },
   { pattern: '阿部寛', replacement: 'あべひろし', note: '俳優・阿部寛。「あべひらん」と誤読（正: あべひろし）' },
+  // 2026-06-10 1986春のWhisper全文検査で検出（hideさん未報告分）
+  { pattern: '千代の富士', replacement: 'ちよのふじ', note: 'Whisperが「塩野富士」と書き起こし=読み破綻の疑い（正: ちよのふじ）' },
+  { pattern: '筑紫哲也', replacement: 'ちくしてつや', note: 'Whisperが「少し徹夜」と書き起こし=読み破綻の疑い（正: ちくしてつや）' },
+  { pattern: '産声', replacement: 'うぶごえ', note: 'Whisperが「海声」と書き起こし=読み破綻の疑い（正: うぶごえ）' },
+  { pattern: '1986年の春', replacement: 'せんきゅうひゃくはちじゅうろく年の春', note: '文頭の「1986年の春」を「にせんきゅうひゃく…」と誤読（seg3/seg4で確認）。この定型句に限定してかな化。他年で再発したら一般化を検討' },
 ];
 
 /**
