@@ -83,6 +83,14 @@ export const PRONUNCIATION_DICT: PronunciationEntry[] = [
   { pattern: '所作', replacement: 'しょさ', note: '「しょさく」と誤読の疑い（2ロール連続でWhisperが初作と書き起こし）' },
   { pattern: '滲み', replacement: 'にじみ', note: '「滲み込んで」の読みが2ロール連続で不安定（Whisperがみじみと書き起こし）。にじみへ固定' },
   { pattern: '三月', replacement: 'さんがつ', note: '「三月に」を「みかつ」系に誤読（チャンク/全文Whisperが独立に検出）。月名の漢数字は誤読リスクが高い' },
+  // 2026-06-16 カバレッジ#2-4（1987夏/1988秋/1989冬）のWhisper全文検査で検出した固有名詞・難読語
+  { pattern: '俵万智', replacement: 'たわらまち', note: 'Whisperが「タワラマンチ」と書き起こし＝読み破綻（正: たわらまち）。1987夏' },
+  { pattern: '南野陽子', replacement: 'みなみのようこ', note: '「陽子→よこ」と誤読（Whisperが「南の横」と書き起こし）。1988秋' },
+  { pattern: '稲葉浩志', replacement: 'いなばひろし', note: "B'z。「浩志→こうし」と誤読（Whisperが「孔子」と書き起こし）。1988秋" },
+  { pattern: '知床慕情', replacement: 'しれとこぼじょう', note: '映画タイトル。難読で破綻（Whisperが「白友女」と書き起こし）。知床より前に置くこと。1987夏' },
+  { pattern: '知床', replacement: 'しれとこ', note: '地名。単独でも誤読（Whisperが「チロ島」と書き起こし）。1987夏' },
+  { pattern: '祭囃子', replacement: 'まつりばやし', note: '「囃子」が難読で破綻（Whisperが「松井林」と書き起こし）。1988秋' },
+  { pattern: 'ちびまる子ちゃん', replacement: 'ちびまるこちゃん', note: '「まる子→まるぽ」等に誤読（Whisperが「チビマルポ」と書き起こし）。1989冬' },
 ];
 
 /**
