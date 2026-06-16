@@ -69,13 +69,23 @@ for (const [si, { dir, meta }] of segs) {
     if (c.editedAt) totalEdited++;
     const v = c.verification ?? {};
     const sim = typeof v.similarity === 'number' ? v.similarity : 1;
-    if (showAll || sim < threshold || v.ok === false) flagged.push({ c, sim, v });
+    // 年号ミスマッチ検出: text の西暦(19xx/20xx)が asr に無ければ誤読の疑い。
+    // Whisperは発話された数字を桁に正規化するため、年号の数字読み誤り（1991→にせん等）は
+    // similarityだけでは捕捉できない（年号は長いチャンクの一部で似度が下がりにくい）。年号集合の差分で別途検出する。
+    const yp = /(?:19|20)\d{2}/g;
+    const tY = c.text.match(yp) || [];
+    const aY = (v.transcript || '').match(yp) || [];
+    const yearMiss = v.transcript ? tY.filter((y) => !aY.includes(y)) : [];
+    const yearFlag = yearMiss.length > 0 && !c.editedAt;
+    if (showAll || sim < threshold || v.ok === false || yearFlag)
+      flagged.push({ c, sim, v, yearFlag, yearMiss });
   }
   totalFlagged += flagged.length;
   console.log(`\n■ seg${si} ${meta.segmentTitle ?? ''}  [${dir}]  chunks=${chunks.length} flagged=${flagged.length}`);
-  for (const { c, sim, v } of flagged) {
+  for (const { c, sim, v, yearFlag, yearMiss } of flagged) {
     const edited = c.editedAt ? ' (EDITED)' : '';
-    console.log(`  chunk[${c.index}] sim=${sim.toFixed(3)} attempts=${c.attempts ?? '?'}${edited}`);
+    const yf = yearFlag ? ` ⚠️YEAR[${yearMiss.join(',')}]` : '';
+    console.log(`  chunk[${c.index}] sim=${sim.toFixed(3)} attempts=${c.attempts ?? '?'}${edited}${yf}`);
     console.log(`    text  : ${c.text}`);
     console.log(`    asr   : ${(v.transcript ?? '').replace(/\n/g, ' ').trim()}`);
   }
