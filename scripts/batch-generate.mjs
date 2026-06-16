@@ -30,6 +30,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import http from 'node:http';
 
 const CWD = process.cwd();
 const SCRIPTS_ROOT = path.resolve(CWD, '..', 'redial', 'data', 'scripts');
@@ -182,31 +183,44 @@ async function processOne(t, opts) {
 }
 
 // ─── HTTP ヘルパ ─────────────────────────────────────
-async function postJson(url, payload) {
-  let res;
-  try {
-    res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    });
-  } catch (e) {
-    if (e?.name === 'TimeoutError') throw new Error(`タイムアウト (${url})`);
-    throw new Error(`接続失敗 (${url}) — dev サーバーは起動していますか？ env -u ANTHROPIC_API_KEY npm run dev`);
-  }
-  const text = await res.text();
-  let json = null;
-  try {
-    json = JSON.parse(text);
-  } catch {
-    /* JSONでない */
-  }
-  if (!res.ok) {
-    const msg = json?.error ?? text.slice(0, 300);
-    throw new Error(`${url} → ${res.status}: ${msg}`);
-  }
-  return json;
+// node:http で実装（fetch/undici の headersTimeout=約5分 を回避）。
+// TTSのセグメントは dropoutリトライ中の Whisper verify が5分ハングすることがあり、
+// fetch だと UND_ERR_HEADERS_TIMEOUT で socket が切れる。http はヘッダ待ちで切らない。
+function postJson(url, payload) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const body = Buffer.from(JSON.stringify(payload), 'utf8');
+    const req = http.request(
+      {
+        hostname: u.hostname,
+        port: u.port || 80,
+        path: u.pathname + u.search,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Content-Length': body.length },
+      },
+      (res) => {
+        let text = '';
+        res.setEncoding('utf8');
+        res.on('data', (c) => (text += c));
+        res.on('end', () => {
+          let json = null;
+          try { json = JSON.parse(text); } catch { /* JSONでない */ }
+          if ((res.statusCode ?? 0) < 200 || (res.statusCode ?? 0) >= 300) {
+            reject(new Error(`${url} → ${res.statusCode}: ${json?.error ?? text.slice(0, 300)}`));
+          } else {
+            resolve(json);
+          }
+        });
+      },
+    );
+    // socketアイドル（無受信）タイムアウト。レスポンス全体ではなくデータ無受信が続いた時間。
+    req.setTimeout(FETCH_TIMEOUT_MS, () => req.destroy(new Error(`タイムアウト (${url})`)));
+    req.on('error', (e) =>
+      reject(new Error(`接続失敗 (${url}) — dev サーバー起動を確認 (env -u ANTHROPIC_API_KEY npm run dev): ${e.message}`)),
+    );
+    req.write(body);
+    req.end();
+  });
 }
 
 // ─── 引数パース ───────────────────────────────────────

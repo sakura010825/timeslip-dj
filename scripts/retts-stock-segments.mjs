@@ -13,6 +13,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import http from 'node:http';
 
 const CWD = process.cwd();
 const SCRIPTS_ROOT = path.resolve(CWD, '..', 'redial', 'data', 'scripts');
@@ -56,23 +57,16 @@ for (const idx of segIndices) {
   const seg = v1.segments[idx];
   if (!seg) { console.error(`v1.json に segment[${idx}] が無い`); process.exit(1); }
   process.stdout.write(`  seg${idx} ${seg.segmentTitle} 再TTS... `);
-  let res;
+  let j;
   try {
-    res = await fetch(`${base}/api/tts`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text: seg.script,
-        metadata: { segmentIndex: idx, segmentTitle: seg.segmentTitle, year, season },
-      }),
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    j = await postJson(`${base}/api/tts`, {
+      text: seg.script,
+      metadata: { segmentIndex: idx, segmentTitle: seg.segmentTitle, year, season },
     });
   } catch (e) {
-    console.error(`接続失敗（dev起動とポートを確認）: ${e.message}`);
+    console.error(`失敗: ${e.message}`);
     process.exit(1);
   }
-  const j = await res.json();
-  if (!res.ok) { console.error(`失敗: ${j.error ?? res.status}`); process.exit(1); }
   archiveIds[idx] = j.archiveId;
   console.log(`✓ ${j.archiveId} (${j.chunks?.length ?? '?'} chunks)`);
 }
@@ -85,3 +79,38 @@ args.push('--script', v1Path);
 execFileSync('node', args, { stdio: 'inherit', cwd: CWD });
 
 console.log(`\n✓ ${slug} の seg[${segIndices.join(', ')}] を辞書適用で差し替えました`);
+
+// node:http で実装（fetch/undici の headersTimeout=約5分 を回避。長時間TTSでsocketが切れない）
+function postJson(url, payload) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const body = Buffer.from(JSON.stringify(payload), 'utf8');
+    const req = http.request(
+      {
+        hostname: u.hostname,
+        port: u.port || 80,
+        path: u.pathname + u.search,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Content-Length': body.length },
+      },
+      (res) => {
+        let text = '';
+        res.setEncoding('utf8');
+        res.on('data', (c) => (text += c));
+        res.on('end', () => {
+          let json = null;
+          try { json = JSON.parse(text); } catch { /* JSONでない */ }
+          if ((res.statusCode ?? 0) < 200 || (res.statusCode ?? 0) >= 300) {
+            reject(new Error(`${url} → ${res.statusCode}: ${json?.error ?? text.slice(0, 300)}`));
+          } else {
+            resolve(json);
+          }
+        });
+      },
+    );
+    req.setTimeout(FETCH_TIMEOUT_MS, () => req.destroy(new Error(`タイムアウト (${url})`)));
+    req.on('error', (e) => reject(new Error(`接続失敗 (${url}): ${e.message}`)));
+    req.write(body);
+    req.end();
+  });
+}

@@ -103,6 +103,11 @@ export const PRONUNCIATION_DICT: PronunciationEntry[] = [
   { pattern: '紅の豚', replacement: 'くれないのぶた', note: '映画タイトル。「紅」が読めず2ロール連続で破綻（Whisperが「家内の豚」「栗菜の豚」と書き起こし）。正: くれないのぶた。1992夏' },
   { pattern: '賀来千香子', replacement: 'かくちかこ', note: '女優・賀来千香子。「賀来」が読めず破綻（Whisperが「辛井千佳子」と書き起こし・attempts=3で不安定）。正: かくちかこ。1992夏' },
   { pattern: '山形新幹線', replacement: 'やまがたしんかんせん', note: '「山形」が箇所により「やまれた」等に揺れる（Whisperが「山れた新幹線」と書き起こし）。新幹線文脈に限定してかな化。1992夏' },
+  // 2026-06-16 カバレッジ#7（1993秋）のWhisper検査で検出
+  { pattern: '硝子の塔', replacement: 'がらすのとう', note: '映画タイトル。「硝子」が読めず破綻（Whisperが「証拠の塔」と書き起こし）。正: がらすのとう。1993秋' },
+  { pattern: '曙', replacement: 'あけぼの', note: '横綱・曙。Whisperが「悪魔」と書き起こし＝読み破綻（正: あけぼの）。1993秋' },
+  // 2026-06-16 カバレッジ#8（1994冬）のWhisper検査で検出
+  { pattern: '野茂英雄', replacement: 'のもひでお', note: '投手・野茂英雄。箇所により「もも英雄」等に揺れる（Whisperが「桃英雄」と書き起こし）。正: のもひでお。1994冬' },
 ];
 
 /**
