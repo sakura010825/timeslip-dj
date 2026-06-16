@@ -94,6 +94,15 @@ export const PRONUNCIATION_DICT: PronunciationEntry[] = [
   { pattern: 'ちびまる子ちゃん', replacement: 'ちびまるこちゃん', note: '「まる子→まるぽ」等に誤読（Whisperが「チビマルポ」と書き起こし）。1989冬' },
   // 2026-06-16 カバレッジ#5（1991春）のWhisper検査で検出
   { pattern: '貴花田', replacement: 'たかはなだ', note: '相撲・貴花田（のちの貴乃花）。Whisperが「木金田」と書き起こし＝読み破綻（正: たかはなだ）。1991春' },
+  // 2026-06-16 カバレッジ#6（1992夏）のTTSで検出。英語2文字「if」がdropout（読み飛ばし maxGap=9）を起こし、
+  // verifyリトライで処理が異常に長時間化 → fetch socket切れの一因に。英語タイトル曲は確実にカナ化する。
+  { pattern: /\bif\b/gi, replacement: 'イフ', note: "CHAGE and ASKA『if』等。英語2文字のままだとTTSがdropoutする。単語境界で限定。1992夏" },
+  { pattern: 'エスエーワイ・イエス', replacement: 'セイ・イエス', note: "CHAGE and ASKA『SAY YES』をClaudeが「エスエーワイ」と先回り誤カナ化。正: セイ・イエス。1992夏" },
+  { pattern: 'SAY YES', replacement: 'セイ・イエス', note: '英語のままの場合の保険。セイ・イエス。1992夏' },
+  // 2026-06-16 カバレッジ#6（1992夏）のWhisper検査で検出した固有名詞・難読語
+  { pattern: '紅の豚', replacement: 'くれないのぶた', note: '映画タイトル。「紅」が読めず2ロール連続で破綻（Whisperが「家内の豚」「栗菜の豚」と書き起こし）。正: くれないのぶた。1992夏' },
+  { pattern: '賀来千香子', replacement: 'かくちかこ', note: '女優・賀来千香子。「賀来」が読めず破綻（Whisperが「辛井千佳子」と書き起こし・attempts=3で不安定）。正: かくちかこ。1992夏' },
+  { pattern: '山形新幹線', replacement: 'やまがたしんかんせん', note: '「山形」が箇所により「やまれた」等に揺れる（Whisperが「山れた新幹線」と書き起こし）。新幹線文脈に限定してかな化。1992夏' },
 ];
 
 /**
