@@ -86,7 +86,8 @@ export const PRONUNCIATION_DICT: PronunciationEntry[] = [
   // 2026-06-16 カバレッジ#2-4（1987夏/1988秋/1989冬）のWhisper全文検査で検出した固有名詞・難読語
   { pattern: '俵万智', replacement: 'たわらまち', note: 'Whisperが「タワラマンチ」と書き起こし＝読み破綻（正: たわらまち）。1987夏' },
   { pattern: '南野陽子', replacement: 'みなみのようこ', note: '「陽子→よこ」と誤読（Whisperが「南の横」と書き起こし）。1988秋' },
-  { pattern: '稲葉浩志', replacement: 'いなばひろし', note: "B'z。「浩志→こうし」と誤読（Whisperが「孔子」と書き起こし）。1988秋" },
+  { pattern: '稲葉浩志', replacement: 'いなばこうし', note: "B'z稲葉浩志は『いなばこうし』が正（2026-06-16 hideさん試聴で確定。以前『ひろし』としたのは誤り）。1988秋" },
+  { pattern: '渥美清', replacement: 'あつみきよし', note: '俳優・渥美清。「あつみきよ」と末尾欠落で誤読（正: あつみきよし）。1987夏' },
   { pattern: '知床慕情', replacement: 'しれとこぼじょう', note: '映画タイトル。難読で破綻（Whisperが「白友女」と書き起こし）。知床より前に置くこと。1987夏' },
   { pattern: '知床', replacement: 'しれとこ', note: '地名。単独でも誤読（Whisperが「チロ島」と書き起こし）。1987夏' },
   { pattern: '祭囃子', replacement: 'まつりばやし', note: '「囃子」が難読で破綻（Whisperが「松井林」と書き起こし）。1988秋' },
