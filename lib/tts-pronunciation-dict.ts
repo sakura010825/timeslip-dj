@@ -92,6 +92,8 @@ export const PRONUNCIATION_DICT: PronunciationEntry[] = [
   { pattern: '知床', replacement: 'しれとこ', note: '地名。単独でも誤読（Whisperが「チロ島」と書き起こし）。1987夏' },
   { pattern: '祭囃子', replacement: 'まつりばやし', note: '「囃子」が難読で破綻（Whisperが「松井林」と書き起こし）。1988秋' },
   { pattern: 'ちびまる子ちゃん', replacement: 'ちびまるこちゃん', note: '「まる子→まるぽ」等に誤読（Whisperが「チビマルポ」と書き起こし）。1989冬' },
+  // 2026-06-16 カバレッジ#5（1991春）のWhisper検査で検出
+  { pattern: '貴花田', replacement: 'たかはなだ', note: '相撲・貴花田（のちの貴乃花）。Whisperが「木金田」と書き起こし＝読み破綻（正: たかはなだ）。1991春' },
 ];
 
 /**
