@@ -108,6 +108,10 @@ export const PRONUNCIATION_DICT: PronunciationEntry[] = [
   { pattern: '曙', replacement: 'あけぼの', note: '横綱・曙。Whisperが「悪魔」と書き起こし＝読み破綻（正: あけぼの）。1993秋' },
   // 2026-06-16 カバレッジ#8（1994冬）のWhisper検査で検出
   { pattern: '野茂英雄', replacement: 'のもひでお', note: '投手・野茂英雄。箇所により「もも英雄」等に揺れる（Whisperが「桃英雄」と書き起こし）。正: のもひでお。1994冬' },
+  // 2026-06-16 hideさんスポット試聴で検出（#6-8）
+  { pattern: '有森裕子', replacement: 'ありもりゆうこ', note: 'マラソン・有森裕子。「ありもりひろこ」と誤読（裕子→ゆうこ）。1992夏' },
+  { pattern: '井上雄彦', replacement: 'いのうえたけひこ', note: 'スラムダンク作者・井上雄彦。「いのうえゆうひこ」と誤読（雄彦→たけひこ）。1993秋' },
+  { pattern: '白鳥麗子', replacement: 'しらとりれいこ', note: 'ドラマ『白鳥麗子でございます』。「はくちょうれいこ」と誤読（白鳥→しらとり）。1993秋' },
 ];
 
 /**
