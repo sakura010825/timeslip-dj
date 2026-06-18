@@ -101,6 +101,18 @@ async function processOne(t, opts) {
   const songs = segments.filter((s) => s.songTitle).map((s) => `${s.songTitle}`);
   console.log(`      ✓ 5セグメント（曲 ${songs.length}本: ${songs.join(' / ')}）`);
 
+  // 無人化: 年号を日本語読みに自動かな化（TTSの年号誤読「にせん/桁読み」を防ぐ）。
+  // これまで手作業で v1.json を直していた工程の自動化。Layer3 は元の数字表記で検証するため、
+  // かな化前のテキストを保持しておく。
+  const scriptTextOriginal = segments.map((s) => `【${s.segmentTitle}】\n${s.script}`).join('\n\n');
+  let kanaCount = 0;
+  for (const s of segments) {
+    const before = s.script;
+    s.script = kanaizeYears(s.script);
+    if (s.script !== before) kanaCount++;
+  }
+  console.log(`      ✓ 年号かな化: ${kanaCount}/${segments.length} セグメント`);
+
   // 2) v1.json 保存（stockize が楽曲メタ＋videoId を解決するために参照）
   fs.mkdirSync(SCRIPTS_ROOT, { recursive: true });
   const v1Path = path.join(SCRIPTS_ROOT, `${slug}-v1.json`);
@@ -109,7 +121,7 @@ async function processOne(t, opts) {
 
   // 3) Layer3 グラウンディング検証（TTSの前段で1パス）
   console.log('[2/5] Layer3 グラウンディング検証中...');
-  const scriptText = segments.map((s) => `【${s.segmentTitle}】\n${s.script}`).join('\n\n');
+  const scriptText = scriptTextOriginal; // かな化前の数字表記で検証（KBとの突合精度のため）
   let report = null;
   try {
     report = await postJson(`${opts.base}/api/verify-grounding`, {
@@ -254,4 +266,25 @@ function parseTargets(args) {
     targets.push({ year: Number(args.year), season: String(args.season).toLowerCase() });
   }
   return targets;
+}
+
+// ─── 年号かな化（無人TTS用） ───────────────────────────
+// 「1990年」→「せんきゅうひゃくきゅうじゅうねん」のように西暦+年を日本語読みへ。
+// 「年」も仮名にする（漢字を残すと TTS が「とし」と読む誤読が出るため）。
+// 19xx/20xx + 年 のみを対象にし、非年号の4桁数字（293万・3200人等）は変えない。
+function kanaYear4(n) {
+  const ones = ['', 'いち', 'に', 'さん', 'よん', 'ご', 'ろく', 'なな', 'はち', 'きゅう'];
+  const sen = Math.floor(n / 1000);
+  const hyaku = Math.floor((n % 1000) / 100);
+  const juu = Math.floor((n % 100) / 10);
+  const ichi = n % 10;
+  let s = '';
+  if (sen) s += sen === 1 ? 'せん' : ones[sen] + 'せん';
+  if (hyaku) s += hyaku === 3 ? 'さんびゃく' : hyaku === 6 ? 'ろっぴゃく' : hyaku === 8 ? 'はっぴゃく' : ones[hyaku] + 'ひゃく';
+  if (juu) s += juu === 1 ? 'じゅう' : ones[juu] + 'じゅう';
+  if (ichi) s += ones[ichi];
+  return s;
+}
+function kanaizeYears(text) {
+  return text.replace(/((?:19|20)\d{2})年(代)?/g, (_, y, dai) => kanaYear4(Number(y)) + 'ねん' + (dai ? 'だい' : ''));
 }
