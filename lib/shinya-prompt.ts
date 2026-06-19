@@ -77,8 +77,11 @@ export function buildScriptPrompt(params: {
   season: string;
   topics: KnowledgeItem[];
   musicPool?: KnowledgeItem[];
+  /** 曲選択カスタマイズ: true なら musicPool は「リスナーが選んだ確定曲」。
+   *  全曲を必ず流し、各曲の context も提示して厚く紹介させる（お任せ時は未指定）。 */
+  mustUseSongs?: boolean;
 }): string {
-  const { year, season, topics, musicPool } = params;
+  const { year, season, topics, musicPool, mustUseSongs } = params;
   const sLabel = seasonLabel(season);
   const monthsLabel = SEASON_MONTHS_LABEL[season as SeasonKey] ?? '';
 
@@ -98,6 +101,8 @@ export function buildScriptPrompt(params: {
   // Claude には1パターンのみ提示する（指示遵守の不安定さを構造で吸収）。
   const poolSize = musicPool?.length ?? 0;
   const songsToUse = Math.min(poolSize, 4);
+  // 曲選択モード: プールが「リスナーの選曲」のとき、全曲を必ず流し context も提示する。
+  const mustUse = !!mustUseSongs && poolSize > 0;
 
   // どのセグメントに曲を付けるかの確定マッピング（後ろから null 化）
   const songSlots = [
@@ -119,26 +124,45 @@ export function buildScriptPrompt(params: {
           .join('\n')}\n  - 曲を付けないセグメントでは「次の曲」「最後の一曲」のような楽曲紹介をせず、トークだけで静かに次のセグメントへ繋いでください`
       : '';
 
-  const musicBlock = poolSize > 0
-    ? `
-
-【楽曲候補リスト（このリストから ${songsToUse} 曲を選ぶこと・全${poolSize}件）】
-${musicPool!
-  .map(
-    (m, i) =>
-      `${i + 1}. ${m.title}
+  // 各曲の提示。曲選択モードでは context（検証済みの厚い文脈）も渡し、DJ が厚く紹介できるようにする。
+  const songEntries = (musicPool ?? [])
+    .map((m, i) =>
+      mustUse
+        ? `${i + 1}. ${m.title}
+   事実: ${m.oneLiner}
+   文脈: ${m.context}
+   キーワード: ${m.keywords.join('、')}`
+        : `${i + 1}. ${m.title}
    事実: ${m.oneLiner}
    キーワード: ${m.keywords.join('、')}`,
-  )
-  .join('\n\n')}
+    )
+    .join('\n\n');
+
+  const musicBlock = poolSize === 0
+    ? ''
+    : mustUse
+      ? `
+
+【今夜の楽曲（リスナー本人の選曲・全${songsToUse}曲を必ず流す）】
+${songEntries}
+
+⚠️ 楽曲の絶対ルール（このエピソードは **${songsToUse}曲構成**・全曲リスナーが選んだ曲）:
+- 上記の **${songsToUse}曲は全曲を必ず流す**（選ぶのではなく確定）。以下のスロットに順に割り当ててください:
+${slotInstruction}${nullInstruction}
+- これらは **リスナーが自ら選んだ曲** です。各曲は、紹介や繋ぎで **具体的に・厚めに** 触れてください（上記「文脈」に挙げた事実を語りの材料に使ってよい）。
+- 上記リスト**以外**の楽曲を流すことは禁止。**同じ曲を2回以上**流すことも禁止。
+- 出力JSONの songTitle / artistName は、上記の楽曲名・アーティスト名を正確に再現してください`
+      : `
+
+【楽曲候補リスト（このリストから ${songsToUse} 曲を選ぶこと・全${poolSize}件）】
+${songEntries}
 
 ⚠️ 楽曲選定の絶対ルール（このエピソードは **${songsToUse}曲構成** で固定）:
 - 上記候補から **異なる${songsToUse}曲** を選び、以下のスロットに割り当ててください:
 ${slotInstruction}${nullInstruction}
 - **同じ曲を2回以上選ぶことは絶対に禁止**（候補が足りないなら上記の null 指示に従う）
 - 候補リスト**以外**の楽曲を選ぶことは禁止（たとえ${year}年${sLabel}にヒットしていても、リストにない曲は使用しない）
-- 出力JSONの songTitle / artistName は、候補の楽曲名・アーティスト名を正確に再現してください`
-    : '';
+- 出力JSONの songTitle / artistName は、候補の楽曲名・アーティスト名を正確に再現してください`;
 
   return `${year}年${sLabel}（${monthsLabel}）の30〜35分番組の台本を、シンヤの声で書いてください。
 

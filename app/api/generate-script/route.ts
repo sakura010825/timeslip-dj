@@ -29,13 +29,33 @@ export async function POST(req: Request) {
     const topics = selectTopics(kb.items, 8);
     // 楽曲は知識ベース全体のmusicカテゴリから選ばせる
     // （selectTopics で選ばれた 5項目だけだと music が含まれない可能性があるため）
-    const musicPool = kb.items.filter((i) => i.category === 'music');
+    const allMusic = kb.items.filter((i) => i.category === 'music');
+
+    // 曲選択カスタマイズ: body.songIds があれば、その曲だけにプールを絞る（= must-use）。
+    // 無ければ従来のお任せ（全 music から Claude が選ぶ）。songIds の順を保って解決する。
+    const songIds: string[] = Array.isArray(body.songIds)
+      ? body.songIds.filter((id: unknown): id is string => typeof id === 'string')
+      : [];
+    const mustUseSongs = songIds.length > 0;
+    const musicPool = mustUseSongs
+      ? songIds
+          .map((id) => allMusic.find((m) => m.id === id))
+          .filter((m): m is (typeof allMusic)[number] => Boolean(m))
+      : allMusic;
+
+    if (mustUseSongs && musicPool.length === 0) {
+      return NextResponse.json(
+        { error: `選択された曲が ${yearNum}-${season} のプールに見つかりません: ${songIds.join(', ')}` },
+        { status: 400 },
+      );
+    }
 
     const userPrompt = buildScriptPrompt({
       year: yearNum,
       season,
       topics,
       musicPool,
+      mustUseSongs,
     });
 
     const client = getClient();

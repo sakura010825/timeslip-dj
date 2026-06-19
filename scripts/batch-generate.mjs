@@ -46,6 +46,11 @@ const opts = {
   slugSuffix: args['slug-suffix'] ?? '',
   criticalThreshold:
     args['critical-threshold'] != null ? Number(args['critical-threshold']) : Infinity,
+  // 曲選択カスタマイズ: 指定があれば generate-script に songIds を渡し、その曲だけで生成（must-use）。
+  // 単一ターゲット前提（ワーカーは1ジョブ=1セル）。null = お任せ（従来）。
+  songIds: args['song-ids']
+    ? String(args['song-ids']).split(',').map((s) => s.trim()).filter(Boolean)
+    : null,
 };
 const targets = parseTargets(args);
 
@@ -90,9 +95,11 @@ async function processOne(t, opts) {
 
   // 1) 台本生成（既存 /api/generate-script・無改修）
   console.log('[1/5] 台本生成中（generate-script）...');
+  if (opts.songIds) console.log(`      曲選択モード: ${opts.songIds.length}曲指定 (${opts.songIds.join(', ')})`);
   const script = await postJson(`${opts.base}/api/generate-script`, {
     year: t.year,
     season: t.season,
+    ...(opts.songIds ? { songIds: opts.songIds } : {}),
   });
   const segments = script.segments;
   if (!Array.isArray(segments) || segments.length !== 5) {

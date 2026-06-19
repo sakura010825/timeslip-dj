@@ -71,7 +71,13 @@ async function processJob(job) {
   const t0 = Date.now();
   try {
     // 1) 無人生成（batch-generate: generate → 年号かな化 → Layer3 → TTS → stockize）
-    runInherit('node', ['scripts/batch-generate.mjs', '--targets', `${job.year}-${job.season}`, '--slug-suffix', `-gen${job.id}`, '--base', BASE], CWD);
+    //    曲選択カスタマイズ: job.songs（generations.songs jsonb・選択曲IDの配列）があれば
+    //    その曲だけで生成（must-use）。null/空 = お任せ（従来）。
+    const batchArgs = ['scripts/batch-generate.mjs', '--targets', `${job.year}-${job.season}`, '--slug-suffix', `-gen${job.id}`, '--base', BASE];
+    if (Array.isArray(job.songs) && job.songs.length > 0) {
+      batchArgs.push('--song-ids', job.songs.join(','));
+    }
+    runInherit('node', batchArgs, CWD);
     // 2) 音声を Blob へ（redial の既存 upload スクリプトを再利用）
     const out = runCapture('node', ['scripts/upload-stock-to-blob.mjs', slug], REDIAL);
     const audioBase = (out.match(/AUDIO_BASE_URL=(\S+)/) || [])[1];
