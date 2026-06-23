@@ -124,6 +124,11 @@ export const PRONUNCIATION_DICT: PronunciationEntry[] = [
   { pattern: '佐々木主浩', replacement: 'ささきかずひろ', note: '横浜・大魔神 佐々木主浩。「ささきぬしひろ」と誤読（主浩→かずひろ）。1998秋' },
   { pattern: '常盤貴子', replacement: 'ときわたかこ', note: '女優・常盤貴子。「じょうばんたかこ」と誤読（常盤→ときわ）。1999冬' },
   { pattern: '小渕恵三', replacement: 'おぶちけいぞう', note: '小渕恵三首相。「おぶちめざむ」と誤読（恵三→けいぞう）。1999冬' },
+  // 2026-06-23 onyx焼き直し（Azure製11本）のwhisper-scanで確認
+  { pattern: '布袋寅泰', replacement: 'ほていともやす', note: 'ミュージシャン布袋寅泰。onyxが「ヌボクロ・トライアス」と漢字総崩れ。1990春' },
+  { pattern: '布袋', replacement: 'ほてい', note: '単独の「布袋」フォールバック（布袋寅泰の後に配置）。「ぬのくろ」系の誤読回避' },
+  { pattern: '森喜朗', replacement: 'もりよしろう', note: '森喜朗首相。「喜朗→よしろう」が読めず「もりきろう/もりたかろう」に化ける。2000春・冬' },
+  { pattern: '吉川晃司', replacement: 'きっかわこうじ', note: 'ミュージシャン吉川晃司。「晃司→あきり」等に化ける（布袋寅泰の再TTS時に判明）。正: きっかわこうじ。1990春' },
 ];
 
 /**
