@@ -26,9 +26,10 @@ export async function POST(req: Request) {
     const season: string = body.season ?? monthToSeason(Number(body.month));
 
     const kb = loadKnowledgeBase(yearNum, season);
-    const topics = selectTopics(kb.items, 8);
+    // music はトピック抽選から除外する。楽曲は下の musicPool（楽曲候補リスト）として別枠で渡すため、
+    // music がトピック枠を占めると 8枠を浪費する上、「流さない曲を主役級に語る」一貫性事故の種になる。
+    const topics = selectTopics(kb.items.filter((i) => i.category !== 'music'), 8);
     // 楽曲は知識ベース全体のmusicカテゴリから選ばせる
-    // （selectTopics で選ばれた 5項目だけだと music が含まれない可能性があるため）
     const allMusic = kb.items.filter((i) => i.category === 'music');
 
     // 曲選択カスタマイズ: body.songIds があれば、その曲だけにプールを絞る（= must-use）。
