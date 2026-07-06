@@ -11,8 +11,12 @@
  *      乖離していないか類似度を報告（pre-edit台本の取り違え検出）。
  *
  * 出力先: ../redial/data/scripts/{slug}-v1.json （master redial）
- * usage: node scripts/prep-rebake-v1.mjs [--write]
+ * usage: node scripts/prep-rebake-v1.mjs [--write] [--slugs a,b,c] [--from-txt]
  *   --write 無しは dry-run（差分レポートのみ）。--write で実際に書き込む。
+ *   --slugs   対象slugをカンマ区切りで指定（省略時はAzure製11本の既定リスト）
+ *   --from-txt 既存v1.jsonがあっても seg*.txt から強制的に再構築する
+ *             （台本を直接修正した後の焼き直し＝S3リベイク等はこちらを使う。
+ *              既存v1は修正前台本のことがあるため）
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -21,12 +25,17 @@ const CWD = process.cwd();
 const STOCK_ROOT = path.resolve(CWD, '..', 'redial', 'data', 'stock');
 const SCRIPTS_ROOT = path.resolve(CWD, '..', 'redial', 'data', 'scripts');
 const WRITE = process.argv.includes('--write');
+const FROM_TXT = process.argv.includes('--from-txt');
+const slugsIdx = process.argv.indexOf('--slugs');
 
-const SLUGS = [
+const DEFAULT_SLUGS = [
   '1990-spring', '1990-summer', '1990-autumn', '1990-winter',
   '1995-spring', '1995-summer', '1995-winter',
   '2000-spring', '2000-summer', '2000-autumn', '2000-winter',
 ];
+const SLUGS = slugsIdx >= 0
+  ? String(process.argv[slugsIdx + 1]).split(',').map((s) => s.trim()).filter(Boolean)
+  : DEFAULT_SLUGS;
 
 // ─── 年号かな化（batch-generate.mjs と同一ロジック）───────────
 function kanaYear4(n) {
@@ -77,7 +86,7 @@ for (const slug of SLUGS) {
 
   let v1;
   let source;
-  if (hasV1) {
+  if (hasV1 && !FROM_TXT) {
     v1 = JSON.parse(fs.readFileSync(v1Path, 'utf8'));
     source = 'existing-v1';
     // 乖離チェック: 既存v1の各segが seg*.txt と近いか
