@@ -24,6 +24,11 @@ const SUPABASE_URL = normalizeUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const BASE = (process.env.GEN_BASE ?? 'http://localhost:3000').replace(/\/$/, '');
 const POLL_MS = Number(process.env.GEN_POLL_MS ?? 20000);
+// 処理中スタックの回収しきい値。1生成は通常1〜2分。これを大きく超えて generating の
+// ままの行は、ワーカーが処理中にPCスリープ/クラッシュ/端末クローズで死んだ孤児。
+// 無言で永久 generating（UIは「生成中…」のまま）になるのを防ぎ、可視的な failed に倒す。
+// 設計: docs/OPS_WORKER_RESILIENCE_2026-07.md（T0-4）
+const STUCK_MS = Number(process.env.GEN_STUCK_MS ?? 15 * 60 * 1000);
 
 if (!SUPABASE_URL || !SERVICE_KEY) {
   console.error('NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY を timeslip-dj/.env.local に設定してください。');
@@ -40,6 +45,11 @@ await loop();
 
 async function loop() {
   for (;;) {
+    try {
+      await reclaimStuck();
+    } catch (e) {
+      console.error('reclaimエラー:', e.message);
+    }
     let job = null;
     try {
       job = await claimNext();
@@ -48,6 +58,27 @@ async function loop() {
     }
     if (job) await processJob(job);
     else await sleep(POLL_MS);
+  }
+}
+
+// 孤児化した generating（STUCK_MS 超）を failed に倒す。ワーカーが処理中に死ぬと
+// その行は誰にも触られず永久に generating のままになる（UIは「生成中…」で固まる）。
+// これを可視的な失敗に変え、ユーザーが再生成できる状態に戻す（原子性は不要＝古い
+// generating は定義上いま処理中でない）。
+async function reclaimStuck() {
+  const cutoff = new Date(Date.now() - STUCK_MS).toISOString();
+  const { data } = await supa
+    .from('generations')
+    .update({
+      status: 'failed',
+      error: '生成が中断されました。お手数ですが、もう一度お試しください。',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('status', 'generating')
+    .lt('updated_at', cutoff)
+    .select('id');
+  if (data && data.length > 0) {
+    console.warn(`⚠ 孤児 generating を ${data.length} 件 failed に回収: [${data.map((r) => r.id).join(', ')}]`);
   }
 }
 
