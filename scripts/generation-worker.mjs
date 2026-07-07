@@ -46,6 +46,11 @@ await loop();
 async function loop() {
   for (;;) {
     try {
+      await beat();
+    } catch (e) {
+      console.error('heartbeatエラー:', e.message);
+    }
+    try {
       await reclaimStuck();
     } catch (e) {
       console.error('reclaimエラー:', e.message);
@@ -59,6 +64,15 @@ async function loop() {
     if (job) await processJob(job);
     else await sleep(POLL_MS);
   }
+}
+
+// 死活監視のハートビート（T0-4）。ループ毎に last_beat_at を更新する。
+// redial の /api/health がこの鮮度を読み、5分途絶で 503（外部監視が通知）。
+// worker_heartbeat テーブル未適用でも黙って握りつぶす（起動は妨げない）。
+async function beat() {
+  await supa
+    .from('worker_heartbeat')
+    .upsert({ id: 1, last_beat_at: new Date().toISOString(), note: 'generation-worker' });
 }
 
 // 孤児化した generating（STUCK_MS 超）を failed に倒す。ワーカーが処理中に死ぬと
