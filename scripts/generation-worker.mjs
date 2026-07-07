@@ -14,6 +14,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 
 const CWD = process.cwd();
@@ -66,14 +67,20 @@ async function claimNext() {
 }
 
 async function processJob(job) {
-  const slug = `${job.year}-${job.season}-gen${job.id}`;
+  // slug に推測困難なトークンを混ぜる（2026-07-07 セキュリティ監査・Blobパス列挙対策[中]）。
+  // 旧 `${year}-${season}-gen${連番id}` は id が連番のため総当たりで他人の個別生成音声
+  // （公開URL・署名なし）を列挙・聴取できた。ランダム token を足して推測不能にする。
+  // suffix は batch-generate の --slug-suffix と worker 側 slug で必ず同一にする。
+  const token = randomBytes(6).toString('hex'); // 12桁hex
+  const suffix = `-gen${job.id}-${token}`;
+  const slug = `${job.year}-${job.season}${suffix}`;
   console.log(`\n▶ job#${job.id}  ${job.year}-${job.season}  → ${slug}`);
   const t0 = Date.now();
   try {
     // 1) 無人生成（batch-generate: generate → 年号かな化 → Layer3 → TTS → stockize）
     //    曲選択カスタマイズ: job.songs（generations.songs jsonb・選択曲IDの配列）があれば
     //    その曲だけで生成（must-use）。null/空 = お任せ（従来）。
-    const batchArgs = ['scripts/batch-generate.mjs', '--targets', `${job.year}-${job.season}`, '--slug-suffix', `-gen${job.id}`, '--base', BASE];
+    const batchArgs = ['scripts/batch-generate.mjs', '--targets', `${job.year}-${job.season}`, '--slug-suffix', suffix, '--base', BASE];
     if (Array.isArray(job.songs) && job.songs.length > 0) {
       batchArgs.push('--song-ids', job.songs.join(','));
     }
