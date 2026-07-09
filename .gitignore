@@ -50,3 +50,6 @@ next-env.d.ts
 # .env.local の手動バックアップ（Azure復帰用など）
 .env.local.backup-*
 /.tts-snapshot-test/
+
+# ワーカー常駐ランチャのログ（T0-4・start-worker.bat が出力）
+/logs/
