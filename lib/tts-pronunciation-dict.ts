@@ -133,6 +133,9 @@ export const PRONUNCIATION_DICT: PronunciationEntry[] = [
   { pattern: '槇原寛己', replacement: 'まきはらひろみ', note: '巨人の投手・槇原寛己。「寛己→かんき」等に化ける（1985春S3焼き直しで判明）' },
   { pattern: '渡辺久信', replacement: 'わたなべひさのぶ', note: '西武の投手・渡辺久信。「くさのぶ」等の読み揺れ（1986春S3焼き直しで判明）' },
   { pattern: '最高値', replacement: 'さいたかね', note: '相場用語。「さいこうち/さいこうきん」に化ける（1990冬S3焼き直しで判明）。価格文脈では常に「さいたかね」' },
+  // 2026-07-09 オンデマンド生成（hideさん試聴・1992）で確認。誤読ログ docs/ONDEMAND_MISREADING_LOG.md 参照
+  { pattern: '加藤登紀子', replacement: 'かとうときこ', note: '歌手・加藤登紀子。「登紀子→のぼり子」と誤読（登=のぼり）。オンデマンド1992' },
+  { pattern: '古賀稔彦', replacement: 'こがとしひこ', note: '柔道・古賀稔彦（1992バルセロナ金・平成の三四郎）。「稔彦」が読めず破綻。オンデマンド1992' },
 ];
 
 /**
