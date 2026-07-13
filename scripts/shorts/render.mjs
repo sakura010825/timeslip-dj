@@ -41,11 +41,14 @@ export async function renderShort({ mp3Path, win, bg, assPath, outMp4, endcardSe
   if (bgPath && fs.existsSync(bgPath)) {
     // 背景静止画＋ゆっくりズーム（Ken Burns）
     inputs.push('-loop', '1', '-t', String(total), '-i', bgPath);
-    // 情景写真は暗く沈めて字幕の可読性を確保＋深夜ラジオの落ち着いた質感に（hideフィードバック 2026-07-13）
+    // 上のキラキラは残し、字幕帯（下側）だけをグラデ乗算で暗くして可読性を確保（hideフィードバック 2026-07-13）。
+    // eqは軽い暗転＋彩度維持でカラフルさを保つ／下部scrim=白→暗灰の縦グラデをmultiply。
     bgChain =
       `[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,` +
       `zoompan=z='min(zoom+0.0004,1.12)':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:fps=${FPS},` +
-      `eq=brightness=-0.12:contrast=1.02:saturation=0.95,vignette=PI/6,setsar=1[bg]`;
+      `eq=brightness=-0.08:contrast=1.02:saturation=0.98,vignette=PI/6,setsar=1,format=gbrp[bgraw];` +
+      `gradients=s=1080x1920:c0=0xffffff:c1=0x2a2a2a:x0=540:y0=930:x1=540:y1=1920:d=${total}:r=${FPS},format=gbrp[scrim];` +
+      `[bgraw][scrim]blend=all_mode=multiply,format=yuv420p[bg]`;
   } else {
     // フォールバック: 暗い紺のゆっくり動くグラデ＋ビネット（画像プール未整備でも動く・設計 §6.4）
     // ※temporal noiseは全フレーム再生成で圧縮不能→巨大化するため使わない
