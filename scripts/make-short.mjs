@@ -108,7 +108,7 @@ async function processJob(job) {
   const endcardSec = 1.5;
   buildAss({
     assPath,
-    words: data.words,
+    segments: data.segments,
     win,
     year: job.cell.split('-')[0],
     season: job.cell.split('-')[1],

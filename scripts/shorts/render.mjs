@@ -49,9 +49,10 @@ export async function renderShort({ mp3Path, win, bg, assPath, outMp4, endcardSe
     // フォールバック: 暗い紺のゆっくり動くグラデ＋ビネット（画像プール未整備でも動く・設計 §6.4）
     // ※temporal noiseは全フレーム再生成で圧縮不能→巨大化するため使わない
     if (bg) console.warn(`   ⚠ 背景画像が見つからないためフォールバック背景を使用: ${bgPath}`);
+    // 中心がほのかに灯る放射グラデ（真っ暗の寂しさを減らす・hideフィードバック 2026-07-13）
     inputs.push('-f', 'lavfi', '-t', String(total), '-i',
-      `gradients=s=1080x1920:c0=0x0b1a2e:c1=0x05090f:x0=0:y0=0:x1=1080:y1=1920:d=${total}:speed=0.006:r=${FPS}`);
-    bgChain = `[0:v]vignette=PI/5,setsar=1[bg]`;
+      `gradients=s=1080x1920:c0=0x1e2f44:c1=0x070b12:type=radial:d=${total}:speed=0.004:r=${FPS}`);
+    bgChain = `[0:v]vignette=PI/6,setsar=1[bg]`;
   }
 
   // 音声入力（切り出し）
