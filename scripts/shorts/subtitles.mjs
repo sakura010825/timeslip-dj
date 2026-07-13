@@ -124,7 +124,9 @@ export function buildAss({ assPath, segments, win, year, season, title, subsOver
   const endcard = `ReDial——あなたの季節に、もう一度。\\N{\\fs38\\c&H00C8C8C8&}フル版は音楽つき30分・プロフィールのリンクから`;
   events.push(`Dialogue: 0,${assTime(dur)},${assTime(total)},Endcard,,0,0,0,,${endcard}`);
   if (title) {
-    events.push(`Dialogue: 0,${assTime(0)},${assTime(Math.min(2.6, dur))},Endcard,,0,0,1180,,{\\fs52\\c&H00F0F0F0&}${assEscape(title)}`);
+    // 冒頭に「何の話か」を平易に提示してから音で聴かせる（hideフィードバック 2026-07-13）。
+    // 読める長さ（3.6s）表示。ごまかさず題材を名指しするコピーを --title に入れる運用。
+    events.push(`Dialogue: 0,${assTime(0)},${assTime(Math.min(3.6, dur))},Endcard,,0,0,1180,,{\\fs54\\c&H00F0F0F0&}${assEscape(title)}`);
   }
 
   const ass = [
