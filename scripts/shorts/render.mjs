@@ -41,10 +41,11 @@ export async function renderShort({ mp3Path, win, bg, assPath, outMp4, endcardSe
   if (bgPath && fs.existsSync(bgPath)) {
     // 背景静止画＋ゆっくりズーム（Ken Burns）
     inputs.push('-loop', '1', '-t', String(total), '-i', bgPath);
+    // 情景写真は暗く沈めて字幕の可読性を確保＋深夜ラジオの落ち着いた質感に（hideフィードバック 2026-07-13）
     bgChain =
       `[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,` +
       `zoompan=z='min(zoom+0.0004,1.12)':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:fps=${FPS},` +
-      `setsar=1[bg]`;
+      `eq=brightness=-0.20:contrast=1.03:saturation=0.82,vignette=PI/5,setsar=1[bg]`;
   } else {
     // フォールバック: 暗い紺のゆっくり動くグラデ＋ビネット（画像プール未整備でも動く・設計 §6.4）
     // ※temporal noiseは全フレーム再生成で圧縮不能→巨大化するため使わない

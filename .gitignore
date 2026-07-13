@@ -60,3 +60,7 @@ output/shorts/
 # ショート用フォント（システムからコピー・バイナリはコミットしない）
 assets/shorts/fonts/*.ttf
 assets/shorts/fonts/*.ttc
+
+# ショート背景画像（生成物・バイナリはコミットしない／PROMPTS.mdは残す）
+assets/shorts/backgrounds/*.png
+assets/shorts/backgrounds/*.jpg
