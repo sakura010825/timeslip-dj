@@ -10,14 +10,23 @@
 - **実在人物・顔を出さない**（無人、または遠景の匿名シルエットのみ）＝肖像回避
 - **著作物を写さない**（アニメ/キャラ/ジャケット/ポスターなし）
 - **1990年代日本の雰囲気**だが特定できない汎用の情景
-- **構図**: 下1/3と中央は暗く・シンプルに（字幕帯）／左上も空ける（年バッジ）。焦点は上寄り・周辺に
+- **構図**: 下端は暗めに（字幕帯）／左上も空ける（年バッジ）。焦点は上〜中央寄り
+- **⚠️ 明暗は題材に合わせる（一律に暗くしない）**: プリクラ・ゲームセンターのような**賑やかで楽しい場所は明るくカラフル・キラキラ**に／深夜のコンビニ・机の上・夜の電車など**静かな題材は落ち着いた低照度**に。CLIが最終的に少し暗転＋ビネットをかけ、字幕は縁取りで読めるので、明るめの画像でも問題ない
+- **ChatGPT(DALL-E)で作る場合**: 否定条件（"no 〜"の羅列）を書くと生成が固まりやすい。**含めたい情景だけを肯定文で短く**書く（各項の「ChatGPT向け短縮版」を使う）。Geminiは否定条件込みの詳細版でOK
 
 ---
 
-## purikura-night.png ／ プリクラ（1995秋・夜のゲームセンターの気配）
+## purikura-night.png ／ プリクラ（1995秋・華やかで可愛い一角）
+
+⚠️ プリクラは**暗い/陰鬱にしない**。実際は「明るく・カラフルで・女の子が集まる華やかで可愛い場所」。キラキラ・パステル・ポップに（hideフィードバック 2026-07-13：暗くするとホラー映画のゲーセンに見える）。字幕の可読性はCLIの暗転＋字幕の縁取りで担保するので、画像はキラキラ寄りでよい。
 
 ```
-A moody, cinematic vertical 9:16 photograph of the interior of a dim Japanese game arcade at night in the mid-1990s, seen from a quiet corner. Rows of anonymous, unbranded photo-booth-like machines glowing faintly with soft pink and cyan light, curtains half-drawn. Empty of people. Hazy neon reflections on a tiled floor, deep shadows, nostalgic low-key lighting, slight film grain, muted desaturated colors, dark overall. No text, no logos, no signage, no brand names, no visible people or faces, no copyrighted characters. Negative space and darkness in the lower third and center. Photorealistic, 35mm film look. Vertical 1080x1920.
+A bright, cheerful, colorful vertical 9:16 photograph of a cute 1990s Japanese photo-sticker-booth corner, glowing with pop energy. Several tall photo booths with pastel pink, mint, and cyan glowing frames and frilly curtains, decorated with sparkly star and heart shapes and shiny reflective panels. Warm inviting light spilling from inside the booths, glossy floor twinkling with pink and cyan reflections, a lively fun late-1990s girly atmosphere, saturated pastel palette, sparkling highlights, nostalgic and joyful. Empty of people. No text, no letters, no logos, no brand names, no visible people or faces, no copyrighted characters. Keep the very bottom of the frame a little darker for captions. Photorealistic. Vertical 1080x1920.
+```
+
+**ChatGPT(DALL-E)向け短縮版**（否定を書かず、含めたい情景だけ）:
+```
+明るくカラフルで可愛い1990年代日本のプリクラコーナー。パステルピンクとシアンに光る背の高い写真ブースが並び、フリルのカーテン、星やハートのキラキラした装飾、光沢のある床に反射する光。楽しくて華やかな女の子が集まる雰囲気、パステルの彩度、きらめくハイライト、ノスタルジックで幸福感。無人。縦長9:16、フォトリアル。
 ```
 
 ## pager-night.png ／ ポケベル（1993秋・夜の机の上）
