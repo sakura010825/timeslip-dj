@@ -34,6 +34,9 @@ function buildSubEvents(words, t0, t1) {
   let buf = null;
   const visLen = (s) => normalizeForCompare(s).length;
 
+  // 区切りは「句読点境界（。！？」＝常に／、＝ある程度たまったら）」のみ。
+  // 文節の途中で切らない（hideフィードバック 2026-07-13）。句読点なしで極端に長い場合だけ緊急区切り。
+  const EMERGENCY = 26;
   for (const w of clip) {
     const wtext = w.text.replace(/\s+/g, '');
     if (!wtext) continue;
@@ -41,10 +44,10 @@ function buildSubEvents(words, t0, t1) {
     buf.text += wtext;
     buf.end = w.e;
 
+    const vis = visLen(buf.text);
     const endsSentence = SENT_END.test(wtext);
     const endsSoft = SOFT_BREAK.test(wtext);
-    const longEnough = visLen(buf.text) >= MAX_LINE;
-    if (endsSentence || (longEnough && endsSoft) || visLen(buf.text) >= MAX_LINE + 4) {
+    if (endsSentence || (endsSoft && vis >= 8) || vis >= EMERGENCY) {
       events.push(flush(buf));
       buf = null;
     }
