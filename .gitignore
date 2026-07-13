@@ -53,3 +53,10 @@ next-env.d.ts
 
 # ワーカー常駐ランチャのログ（T0-4・start-worker.bat が出力）
 /logs/
+
+# ショート生成物（大容量mp4・キャッシュ）
+output/shorts/
+
+# ショート用フォント（システムからコピー・バイナリはコミットしない）
+assets/shorts/fonts/*.ttf
+assets/shorts/fonts/*.ttc
