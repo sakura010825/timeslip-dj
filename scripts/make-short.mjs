@@ -68,13 +68,21 @@ async function processJob(job) {
   const tag = `#${job.id} ${job.cell} seg${job.seg}`;
   const { segmentName, mp3Path, durationSec } = locateSegAudio(job.cell, job.seg);
   const data = await getWords(job.cell, job.seg, mp3Path);
+  // 窓のクランプは stock.json の estimatedDurationSec ではなく実音声の長さ（Whisper転写の最大end）を使う。
+  // estimatedDurationSec は生成時の概算で実mp3より短いことがあり、末尾（曲紹介等）を切ってしまう（hide 2026-07-13）。
+  const whisperEnd = Math.max(
+    0,
+    ...(data.words ?? []).map((w) => w.end),
+    ...(data.segments ?? []).map((s) => s.end),
+  );
+  const audioDur = Math.max(durationSec ?? 0, whisperEnd);
   const win = resolveWindow({
     data,
     startAnchor: job.start,
     endAnchor: job.end,
     padStart: PAD_START,
     padEnd: PAD_END,
-    segDurationSec: durationSec,
+    segDurationSec: audioDur,
   });
 
   if (!win.ok) {
