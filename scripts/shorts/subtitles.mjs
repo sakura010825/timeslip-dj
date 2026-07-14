@@ -95,7 +95,7 @@ function segmentsToEvents(segments, t0, t1) {
   return events;
 }
 
-export function buildAss({ assPath, segments, win, year, season, title, subsOverride, endcardSec }) {
+export function buildAss({ assPath, segments, win, year, season, title, subsOverride, endcardSec, djName, songCard }) {
   const dur = win.dur;
   const total = dur + endcardSec;
   const seasonJP = SEASON_JP[season] ?? '';
@@ -121,12 +121,17 @@ export function buildAss({ assPath, segments, win, year, season, title, subsOver
   for (const e of subEvents) {
     events.push(`Dialogue: 0,${assTime(e.start)},${assTime(e.end)},Sub,,0,0,0,,${e.text}`);
   }
-  const endcard = `ReDial——あなたの季節に、もう一度。\\N{\\fs38\\c&H00C8C8C8&}フル版は音楽つき30分・プロフィールのリンクから`;
+  // エンドカード＝感情の宛先をReDialに書き換える装置（Fable 2026-07-13 マーケ再設計）。
+  // 型B（--song）: 曲予告クリフハンガー「♪ ここで『◯◯』が流れます／音楽つきのフル版は、ReDialで。」
+  // 型A/C（既定）: 「♪ この続きに、あの頃の曲が流れます／ReDial——あなたの季節に、もう一度。」
+  const endcard = songCard
+    ? `♪ ここで「${assEscape(songCard)}」が流れます\\N{\\fs40\\c&H00C8C8C8&}音楽つきのフル版は、ReDialで。`
+    : `♪ この続きに、あの頃の曲が流れます\\N{\\fs40\\c&H00C8C8C8&}ReDial ——あなたの季節に、もう一度。`;
   events.push(`Dialogue: 0,${assTime(dur)},${assTime(total)},Endcard,,0,0,0,,${endcard}`);
   if (title) {
-    // 冒頭に「何の話か」を平易に提示してから音で聴かせる（hideフィードバック 2026-07-13）。
-    // 読める長さ（3.6s）表示。ごまかさず題材を名指しするコピーを --title に入れる運用。
-    events.push(`Dialogue: 0,${assTime(0)},${assTime(Math.min(3.6, dur))},Endcard,,0,0,1180,,{\\fs54\\c&H00F0F0F0&}${assEscape(title)}`);
+    // 冒頭に「何の話か」を平易に提示＋シンヤ名乗りで「これは深夜DJラジオ」という正体を毎回運ぶ。
+    const djLine = djName ? `\\N{\\fs32\\c&H00B0B0B0&}${assEscape(djName)}` : '';
+    events.push(`Dialogue: 0,${assTime(0)},${assTime(Math.min(3.6, dur))},Endcard,,0,0,1140,,{\\fs54\\c&H00F0F0F0&}${assEscape(title)}${djLine}`);
   }
 
   const ass = [

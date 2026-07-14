@@ -25,6 +25,10 @@ const PAD_END = args['pad-end'] != null ? Number(args['pad-end']) : 0.6;
 // 既定上限90s（CATALOG_AUDIT「ベスト90秒台帳」＝素材の狙い尺。Shortsは現在最大3分可）
 const MAX_SEC = args['max'] != null ? Number(args['max']) : 90;
 
+// シンヤ名乗り（既定ON・--no-dj で消す・--dj で差替）＝毎回「これは深夜DJラジオ」の正体を運ぶ
+const DEFAULT_DJ = '深夜のタイムスリップDJ・シンヤ';
+const DJ_NAME = args['no-dj'] ? null : (args.dj ? String(args.dj) : DEFAULT_DJ);
+
 function buildJobsFromArgs() {
   const need = ['cell', 'seg', 'start', 'end'];
   for (const k of need) if (args[k] == null) fail(`--${k} が必要です`);
@@ -39,18 +43,23 @@ function buildJobsFromArgs() {
     bg: args.bg ? String(args.bg) : null,
     subsFile: args['subs-file'] ? String(args['subs-file']) : null,
     audience: '',
+    song: args.song ? String(args.song) : null,   // 型B: 曲予告クリフハンガー
+    djName: DJ_NAME,
   }];
 }
 
 function buildJobsFromManifest(manifestPath) {
   const m = readJson(manifestPath);
   const only = args.only ? String(args.only).split(',').map((s) => Number(s.trim())) : null;
+  const manifestDj = m.dj !== undefined ? m.dj : DEFAULT_DJ;
   return (m.shorts ?? [])
     .filter((s) => !only || only.includes(s.id))
     .map((s) => ({
       id: s.id, cell: s.cell, seg: s.seg, start: s.start, end: s.end,
       hook: s.hook ?? 'clip', title: s.title ?? '', bg: s.bg ?? null,
       subsFile: s.subsFile ?? null, audience: s.audience ?? '',
+      song: s.song ?? null,
+      djName: args['no-dj'] ? null : (args.dj ? String(args.dj) : manifestDj),
       utm: m.utm,
     }));
 }
@@ -105,7 +114,8 @@ async function processJob(job) {
     ? fs.readFileSync(job.subsFile, 'utf8')
     : null;
 
-  const endcardSec = 1.5;
+  // 型B（曲予告）はカードが主役なので少し長めに見せる
+  const endcardSec = job.song ? 2.4 : 1.8;
   buildAss({
     assPath,
     segments: data.segments,
@@ -115,6 +125,8 @@ async function processJob(job) {
     title: job.title,
     subsOverride,
     endcardSec,
+    djName: job.djName,
+    songCard: job.song,
   });
 
   await renderShort({
