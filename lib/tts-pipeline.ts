@@ -237,12 +237,16 @@ async function ttsChunksInParallel(
               ...chunk,
               mp3: merged,
               attempts: history.length + subAttempts,
+              // ⚠️ 以前はここで similarity:1 / transcript:'[subdivided & merged]' を**捏造**していた。
+              // サブチャンク自体は検証済みだが、証拠（転写）を捨てるため後から監査できず、
+              // 実際に重複音声が公開まで通ってしまった（2026-07-15・1995秋 seg0 の47秒どもり）。
+              // 実測値を残す＝後から scan-duplicate-audio.mjs で検査できる状態にする。
               verification: subAllOk
                 ? {
                     ok: true,
-                    similarity: 1,
-                    maxGap: 0,
-                    transcript: '[subdivided & merged]',
+                    similarity: +subAvgSim.toFixed(3),
+                    maxGap: Math.max(...subResults.map((r) => r.verification?.maxGap ?? 0)),
+                    transcript: subResults.map((r) => r.verification?.transcript ?? '').join(' '),
                     reason: 'subdivided-fallback-ok',
                   }
                 : {

@@ -57,6 +57,9 @@ next-env.d.ts
 # ショート生成物（大容量mp4・キャッシュ）
 output/shorts/
 
+# 長尺アンカー生成物（T2-6・数十MBのmp4・サムネ・ASS）
+output/anchors/
+
 # ショート用フォント（システムからコピー・バイナリはコミットしない）
 assets/shorts/fonts/*.ttf
 assets/shorts/fonts/*.ttc

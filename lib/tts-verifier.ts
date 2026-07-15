@@ -6,10 +6,17 @@
  * 判定指標:
  *  - 最大連続欠落長 (maxGap): 元テキストの中で連続して文字起こしから欠けている字数
  *  - 類似度 (similarity): LCSベースの一致率
+ *  - 重複 (extra repeat): 原稿に無い長い繰り返しが転写に現れる ＝ 同じ箇所を二度読む「どもり」
  *
  * しきい値:
  *  - maxGap >= GAP_THRESHOLD なら「ドロップアウト」と判定 → リトライ
  *  - similarity < SIMILARITY_WARN は警告のみ
+ *  - 重複を検出したら → リトライ
+ *
+ * ⚠️ なぜ重複を独立に見るのか（2026-07-15・公開11本で実害を確認して追加）:
+ *   LCS類似度は「原稿が転写の部分列として残っているか」しか見ないので、TTSが同じ文を
+ *   二度読んでも原稿は部分列として残り similarity≈1 で合格してしまう＝原理的に重複を検出できない。
+ *   実例: 1990夏 seg2「…流れ方のひとつでした」を2回読んだ音声が similarity=0.977/ok=true で通過。
  */
 
 import OpenAI from 'openai';
@@ -19,6 +26,12 @@ const openai = new OpenAI();
 
 const GAP_THRESHOLD = 5;
 const SIMILARITY_WARN = 0.8;
+/**
+ * 「転写にだけ現れる繰り返し」をどこから重複とみなすか（正規化後の文字数）。
+ * 公開25本807チャンクで検証: 12〜15字はいずれも同じ15件を検出（＝実害のあった全件）、
+ * 10字まで下げると誤検出が4件増える。安全側の下限として12を採用。
+ */
+const REPEAT_MIN_LEN = 12;
 /** transcriptに含まれるASCII英文字の比率がこれを超えたら「英語化」と判定 */
 const ENGLISH_RATIO_THRESHOLD = 0.25;
 
@@ -75,6 +88,18 @@ export function compareTexts(expected: string, actual: string): VerifyResult {
     };
   }
 
+  // 重複検出（LCSの前に見る。LCSでは原理的に見えないため）
+  const repeat = findExtraRepeat(normActual, normExpected);
+  if (repeat) {
+    return {
+      ok: false,
+      similarity: 0,
+      maxGap: 0,
+      transcript: actual,
+      reason: `repeat: 「${repeat.phrase.slice(0, 24)}」×${repeat.times}`,
+    };
+  }
+
   const mask = lcsMask(normExpected, normActual);
   let maxGap = 0;
   let curGap = 0;
@@ -101,6 +126,47 @@ export function compareTexts(expected: string, actual: string): VerifyResult {
   }
 
   return { ok, similarity: +similarity.toFixed(3), maxGap, transcript: actual, reason };
+}
+
+function countOccurrences(haystack: string, needle: string): number {
+  let n = 0;
+  let i = 0;
+  for (;;) {
+    const j = haystack.indexOf(needle, i);
+    if (j < 0) break;
+    n++;
+    i = j + 1;
+  }
+  return n;
+}
+
+/**
+ * 転写にだけ現れる最長の繰り返し句を返す（原稿にも同数現れる繰り返しは正当なので除外）。
+ * 見つからなければ null。
+ */
+export function findExtraRepeat(
+  normActual: string,
+  normExpected: string,
+): { phrase: string; times: number } | null {
+  for (let i = 0; i + REPEAT_MIN_LEN <= normActual.length; i++) {
+    const seed = normActual.slice(i, i + REPEAT_MIN_LEN);
+    if (countOccurrences(normActual, seed) < 2) continue;
+    if (countOccurrences(normActual, seed) <= countOccurrences(normExpected, seed)) continue;
+    // 伸ばせるだけ伸ばして、繰り返しの全長を得る
+    let len = REPEAT_MIN_LEN;
+    while (i + len + 1 <= normActual.length) {
+      const grown = normActual.slice(i, i + len + 1);
+      if (
+        countOccurrences(normActual, grown) >= 2 &&
+        countOccurrences(normActual, grown) > countOccurrences(normExpected, grown)
+      ) {
+        len++;
+      } else break;
+    }
+    const phrase = normActual.slice(i, i + len);
+    return { phrase, times: countOccurrences(normActual, phrase) };
+  }
+  return null;
 }
 
 /**

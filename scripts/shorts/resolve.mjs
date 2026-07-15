@@ -98,6 +98,30 @@ function matchAnchor(words, anchor, mode) {
 }
 
 /**
+ * アンカー句1つ → 開始時刻（長尺アンカーのチャプター解決用・T2-6）。
+ * words が薄い/一致が弱い場合は segments（文節）で近似する。
+ */
+export function findAnchorTime(data, anchor) {
+  const words = data.words ?? [];
+  if (words.length >= 4) {
+    const m = matchAnchor(words, anchor, 'start');
+    if (m.score >= 0.8) return { time: m.time, score: m.score, matchedText: m.matchedText };
+  }
+  const n = normalizeForCompare(anchor);
+  const probe = n.slice(0, Math.min(n.length, 8));
+  for (const s of data.segments ?? []) {
+    if (probe && normalizeForCompare(s.text).includes(probe)) {
+      return { time: s.start, score: 0.8, matchedText: s.text, fallback: true };
+    }
+  }
+  if (words.length) {
+    const m = matchAnchor(words, anchor, 'start');
+    return { time: m.time, score: m.score, matchedText: m.matchedText };
+  }
+  return { time: null, score: 0, matchedText: '' };
+}
+
+/**
  * start/end アンカーから切り出し窓を解決する。
  * words が薄い場合は segments（文節）境界でフォールバック。
  */
