@@ -16,7 +16,7 @@ export function writeMeta({ job, win, segmentName, mp3Path, outMp4 }) {
   const decadeKey = year.slice(0, 3);
   const tags = HASHTAGS_BY_DECADE[decadeKey] ?? ['懐かしい'];
   const utm = job.utm ?? { source: 'youtube', medium: 'shorts' };
-  const url = `https://redial.vercel.app/episodes?utm_source=${utm.source}&utm_medium=${utm.medium}&utm_campaign=${job.cell}`;
+  const url = `https://redial.jp/episodes?utm_source=${utm.source}&utm_medium=${utm.medium}&utm_campaign=${job.cell}`;
 
   const description = [
     job.title || `${year}年の、あの季節。`,

@@ -15,6 +15,7 @@
  *   --dry-run           タイムライン・チャプター・尺を表示して終了（mp4を作らない）
  *   --print-transcript  dry-run時に各segの転写を時刻つきで表示（チャプター句の選定用）
  *   --no-transcribe     Whisperを叩かない（srt・アンカー句チャプターは作らず、seg見出しのみ）
+ *   --meta-only         mp4を作り直さず、概要欄・チャプター・メタだけ再生成（URL変更時など）
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -28,6 +29,7 @@ const DRY = !!args['dry-run'];
 const TRANSCRIBE = !args['no-transcribe'];
 const PRINT_TRANSCRIPT = !!args['print-transcript'];
 const WANT_SRT = !!args['srt'];
+const META_ONLY = !!args['meta-only'];
 
 const SONG_CARD_SEC = args['song-card'] != null ? Number(args['song-card']) : 3.2;
 const SEASON_CARD_SEC = args['season-card'] != null ? Number(args['season-card']) : 4.0;
@@ -137,7 +139,7 @@ async function processJob(job) {
   const utm = job.utm ?? { source: 'youtube', medium: 'anchor' };
   const campaign = job.slug ?? job.cells.join('_');
   const target = job.free ? `/episodes/${job.cells[0]}` : '/episodes';
-  const url = `https://redial.vercel.app${target}?utm_source=${utm.source}&utm_medium=${utm.medium}&utm_campaign=${campaign}`;
+  const url = `https://redial.jp${target}?utm_source=${utm.source}&utm_medium=${utm.medium}&utm_campaign=${campaign}`;
 
   console.log(`[${tag}] トーク${(talkTotal / 60).toFixed(1)}分＋エンドカード → 全体 ${ytTime(total)}`);
   console.log(`   talk ${items.filter((i) => i.type === 'talk').length}本 / 曲カード ${songs.length}枚 / チャプター ${chapters.length}個`);
@@ -160,46 +162,51 @@ async function processJob(job) {
 
   if (DRY) return { ok: true, job, dry: true };
 
-  const { buildAnchorAss, buildThumbAss } = await import('./anchor/ass.mjs');
-  const { renderAnchor, renderThumbnail } = await import('./anchor/render.mjs');
-
   ensureDir(ANCHOR_OUT);
   const base = job.slug ?? job.cells.join('_');
   const outMp4 = path.resolve(ANCHOR_OUT, `${base}.mp4`);
   const assPath = path.resolve(ANCHOR_OUT, `.${base}.ass`);
   const thumbAss = path.resolve(ANCHOR_OUT, `.${base}-thumb.ass`);
 
-  // 画面のタイトル板は cardTitle（短い題）。job.title はYouTube用のSEOタイトルで、
-  // 60字超なので画面に出すとはみ出す＝別物として扱う。
-  // cardTitle は配列（1要素=1行）でも文字列でも可
-  const cardTitle = job.cardTitle
-    ?? (job.cells.length > 1
-      ? [`${parseCell(job.cells[0]).year}年、ぜんぶ`, 'あの年の走馬灯']
-      : [parseCell(job.cells[0]).label, 'あの季節の走馬灯']);
-  buildAnchorAss({
-    assPath, items, cellRanges, total,
-    title: cardTitle, djName: job.dj, endcardSec: ENDCARD_SEC,
-    siteLabel: '概要欄から',
-  });
+  // --meta-only: mp4を作り直さず、概要欄・チャプター・メタだけ再生成する。
+  // 動画にURLは焼き込んでいない（カードは「概要欄から」としか言わない）ので、
+  // URL変更（例: redial.vercel.app → redial.jp）は再レンダ不要＝36分の合本を焼き直さずに済む。
+  if (!META_ONLY) {
+    const { buildAnchorAss, buildThumbAss } = await import('./anchor/ass.mjs');
+    const { renderAnchor, renderThumbnail } = await import('./anchor/render.mjs');
 
-  let lastPct = -1;
-  await renderAnchor({
-    items, bg: job.bg, assPath, outMp4, talkTotal, endcardSec: ENDCARD_SEC,
-    onProgress: (t, tot) => {
-      const pct = Math.floor((t / tot) * 100 / 10) * 10;
-      if (pct > lastPct) { lastPct = pct; process.stdout.write(`   render ${pct}%\r`); }
-    },
-  });
-  console.log(`   render 100%   `);
+    // 画面のタイトル板は cardTitle（短い題）。job.title はYouTube用のSEOタイトルで、
+    // 60字超なので画面に出すとはみ出す＝別物として扱う。
+    // cardTitle は配列（1要素=1行）でも文字列でも可
+    const cardTitle = job.cardTitle
+      ?? (job.cells.length > 1
+        ? [`${parseCell(job.cells[0]).year}年、ぜんぶ`, 'あの年の走馬灯']
+        : [parseCell(job.cells[0]).label, 'あの季節の走馬灯']);
+    buildAnchorAss({
+      assPath, items, cellRanges, total,
+      title: cardTitle, djName: job.dj, endcardSec: ENDCARD_SEC,
+      siteLabel: '概要欄から',
+    });
 
-  const first = parseCell(job.cells[0]);
-  buildThumbAss({
-    assPath: thumbAss,
-    year: first.year,
-    seasonJP: job.cells.length > 1 ? 'ぜんぶ' : first.seasonJP,
-    hook: job.thumbHook ?? '',
-  });
-  await renderThumbnail({ bg: job.bg, assPath: thumbAss, outPng: outMp4.replace(/\.mp4$/, '-thumb.png') });
+    let lastPct = -1;
+    await renderAnchor({
+      items, bg: job.bg, assPath, outMp4, talkTotal, endcardSec: ENDCARD_SEC,
+      onProgress: (t, tot) => {
+        const pct = Math.floor((t / tot) * 100 / 10) * 10;
+        if (pct > lastPct) { lastPct = pct; process.stdout.write(`   render ${pct}%\r`); }
+      },
+    });
+    console.log(`   render 100%   `);
+
+    const first = parseCell(job.cells[0]);
+    buildThumbAss({
+      assPath: thumbAss,
+      year: first.year,
+      seasonJP: job.cells.length > 1 ? 'ぜんぶ' : first.seasonJP,
+      hook: job.thumbHook ?? '',
+    });
+    await renderThumbnail({ bg: job.bg, assPath: thumbAss, outPng: outMp4.replace(/\.mp4$/, '-thumb.png') });
+  }
 
   // srtは既定OFF。Whisperは固有名詞に弱く（「ポール」→「コール・マッカートニー」等）、
   // そのまま字幕として上げるとブランドを毀損する。出すなら人手校正が前提（--srt）。
@@ -211,8 +218,10 @@ async function processJob(job) {
   const description = buildDescription({ job, url, chapters, songs, total, cellRanges });
   writeAnchorMeta({ job, outMp4, items, cellRanges, chapters, total, url, description });
 
-  const mb = (fs.statSync(outMp4).size / 1024 / 1024).toFixed(1);
-  console.log(`   ✓ ${path.relative(process.cwd(), outMp4)}  (${mb}MB / ${ytTime(total)})`);
+  const mb = fs.existsSync(outMp4)
+    ? `${(fs.statSync(outMp4).size / 1024 / 1024).toFixed(1)}MB`
+    : 'mp4なし';
+  console.log(`   ✓ ${path.relative(process.cwd(), outMp4)}  (${mb} / ${ytTime(total)})${META_ONLY ? ' [meta-only]' : ''}`);
   return { ok: true, job };
 }
 
