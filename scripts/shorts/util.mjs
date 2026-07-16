@@ -50,7 +50,7 @@ export function normalizeForCompare(s) {
 export function slugifyHook(s) {
   return (s ?? 'clip')
     .trim()
-    .replace(/[\/\\:*?"<>|]+/g, '')
+    .replace(/[\/\\:*?"'’`<>|]+/g, '')
     .replace(/\s+/g, '-')
     .slice(0, 40);
 }
