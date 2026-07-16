@@ -65,7 +65,10 @@ export async function renderShort({ mp3Path, win, bg, assPath, outMp4, endcardSe
   const filter = [
     bgChain,
     `[1:a]asplit=2[awav][a0]`,
-    `[awav]showwaves=s=1080x140:mode=cline:rate=${FPS}:colors=0xB0D9E8[wav]`,
+    // ⚠️ draw=full は必須。既定の draw=scale は「1列に当たったサンプル数」で輝度を割るため、
+    // 幅1080px×rate30 では1列あたり約1.4サンプルしか無く、波形が最大輝度80＝ほぼ見えない
+    // （2026-07-16 アンカー側で発覚し、ショートも同じ穴だったことが判明）。
+    `[awav]showwaves=s=1080x140:mode=cline:rate=${FPS}:colors=0xB0D9E8:draw=full[wav]`,
     `[bg][wav]overlay=x=0:y=H-210:shortest=0[bgw]`,
     `[bgw]${assArg}[vid]`,
     `[a0]afade=t=in:st=0:d=0.3,afade=t=out:st=${Math.max(0, dur - 0.3)}:d=0.3,apad[aud]`,

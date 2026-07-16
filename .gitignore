@@ -67,3 +67,6 @@ assets/shorts/fonts/*.ttc
 # ショート背景画像（生成物・バイナリはコミットしない／PROMPTS.mdは残す）
 assets/shorts/backgrounds/*.png
 assets/shorts/backgrounds/*.jpg
+# ただし長尺アンカーの共通背景だけは例外＝公開動画3本の見た目を決める資産で、
+# Geminiは同じ絵を二度と出さない。原本と作り方は redial/SNS/README.md（2026-07-16）
+!assets/shorts/backgrounds/radio-booth-night.png

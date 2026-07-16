@@ -81,13 +81,22 @@ export async function renderAnchor({ items, bg, assPath, outMp4, talkTotal, endc
     bgChain,
     ...aChains,
     `${concatIn}concat=n=${aLabels.length}:v=0:a=1[araw]`,
-    `[araw]asplit=2[awav][a0]`,
-    `[awav]showwaves=s=${W}x120:mode=cline:rate=${FPS}:colors=0xB0D9E8[wav]`,
+    // ⚠️ ラベル名に注意: 上の aChains が [a0],[a1],... を既に定義しているので、
+    // ここで [a0] を再定義すると**ラベル衝突**になり、ffmpegはエラーを出さないまま
+    // 波形の経路（[awav]→showwaves→overlay）が黙って死ぬ（2026-07-16 発覚）。
+    `[araw]asplit=2[awav][amain]`,
+    // ⚠️ draw=full は必須。既定の draw=scale は「1列に当たったサンプル数」で輝度を割るため、
+    // 幅1920px×rate15 では1列あたり約1.5サンプルしか無く、波形が最大輝度45＝ほぼ真っ黒になる
+    // （2026-07-16 発覚。幅400pxなら正常に出るので長らく気づけなかった）。
+    `[awav]showwaves=s=${W}x120:mode=cline:rate=${FPS}:colors=0xB0D9E8:draw=full[wav]`,
     `[bg][wav]overlay=x=0:y=H-170:shortest=0[bgw]`,
     `[bgw]subtitles=filename='${ffPath(assPath)}':fontsdir='${ffPath(FONTS_DIR)}'[vid]`,
-    `[a0]afade=t=in:st=0:d=0.8,afade=t=out:st=${Math.max(0, talkTotal - 1.2)}:d=1.2,apad[aud]`,
+    `[amain]afade=t=in:st=0:d=0.8,afade=t=out:st=${Math.max(0, talkTotal - 1.2)}:d=1.2,apad[aud]`,
   ].join(';');
 
+  if (process.env.ANCHOR_DEBUG_FILTER) {
+    console.log('--- FILTER ---\n' + filter.split(';').join(';\n') + '\n--- /FILTER ---');
+  }
   const args = [
     '-y',
     ...inputs,
