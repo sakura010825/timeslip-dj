@@ -95,7 +95,18 @@ function segmentsToEvents(segments, t0, t1) {
   return events;
 }
 
-export function buildAss({ assPath, segments, win, year, season, title, subsOverride, endcardSec, djName, songCard }) {
+/** 誤読語の literal 置換（[wrong,right]…）。Whisperの固有名詞誤りを、
+ *  セグメントのタイミングを保ったまま校正する。音声(TTS)は正しく字幕化だけが誤るため。 */
+function applyFixes(text, fixes) {
+  if (!fixes || !fixes.length || !text) return text;
+  let t = text;
+  for (const [from, to] of fixes) {
+    if (from) t = t.split(from).join(to ?? '');
+  }
+  return t;
+}
+
+export function buildAss({ assPath, segments, win, year, season, title, subsOverride, endcardSec, djName, songCard, fixes }) {
   const dur = win.dur;
   const total = dur + endcardSec;
   const seasonJP = SEASON_JP[season] ?? '';
@@ -104,9 +115,10 @@ export function buildAss({ assPath, segments, win, year, season, title, subsOver
   if (subsOverride) {
     const lines = subsOverride.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
     const slot = dur / Math.max(1, lines.length);
-    subEvents = lines.map((text, i) => ({ start: i * slot, end: (i + 1) * slot, text: assEscape(text) }));
+    subEvents = lines.map((text, i) => ({ start: i * slot, end: (i + 1) * slot, text: assEscape(applyFixes(text, fixes)) }));
   } else {
-    subEvents = segmentsToEvents(segments, win.t0, win.t1);
+    const fixedSegments = (segments ?? []).map((s) => ({ ...s, text: applyFixes(s.text, fixes) }));
+    subEvents = segmentsToEvents(fixedSegments, win.t0, win.t1);
   }
 
   const styles = [

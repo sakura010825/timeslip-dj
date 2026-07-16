@@ -44,6 +44,7 @@ function buildJobsFromArgs() {
     subsFile: args['subs-file'] ? String(args['subs-file']) : null,
     audience: '',
     song: args.song ? String(args.song) : null,   // 型B: 曲予告クリフハンガー
+    fixes: null,
     djName: DJ_NAME,
   }];
 }
@@ -58,7 +59,7 @@ function buildJobsFromManifest(manifestPath) {
       id: s.id, cell: s.cell, seg: s.seg, start: s.start, end: s.end,
       hook: s.hook ?? 'clip', title: s.title ?? '', bg: s.bg ?? null,
       subsFile: s.subsFile ?? null, audience: s.audience ?? '',
-      song: s.song ?? null,
+      song: s.song ?? null, fixes: s.fixes ?? null,
       djName: args['no-dj'] ? null : (args.dj ? String(args.dj) : manifestDj),
       utm: m.utm,
     }));
@@ -135,6 +136,7 @@ async function processJob(job) {
     endcardSec,
     djName: job.djName,
     songCard: job.song,
+    fixes: job.fixes,
   });
 
   await renderShort({
