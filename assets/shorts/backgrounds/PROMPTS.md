@@ -61,10 +61,60 @@ A cinematic vertical 9:16 photograph of a quiet Japanese city street at night in
 
 ---
 
+## night-station.png ／ 六甲道駅・復旧の朝（1995春・#1）
+
+```
+A tall vertical 9:16 cinematic photograph: an empty elevated Japanese commuter train platform at dawn in early spring, 1995. Faint morning mist, a single local train just arrived and standing quietly at the platform, soft blue-hour light beginning to warm at the horizon. A quiet sense of return and relief. No people, no text, no signage, no logos, no watermark. Deep navy and cool grey tones with a faint warm dawn glow far away. The center and lower half must stay dark and uncluttered for overlaid text. Photographic, shallow depth of field, film grain, vertical 9:16.
+```
+
+## cassette-night.png ／ カセットと音楽（1988秋・#2）
+
+```
+A tall vertical 9:16 cinematic photograph: a single audio cassette tape and a vintage portable stereo resting on a wooden desk at night, late 1980s Japan, lit only by a warm desk lamp from one side. An unplayed tape, intimate and quiet, late-night music nostalgia. No people, no readable text or brand names, no logos, no watermark. Deep shadow with warm amber highlights on the plastic and metal. The center and lower half must stay dark and uncluttered for overlaid text. Photographic, shallow depth of field, film grain, vertical 9:16.
+```
+
+## stadium-night.png ／ 甲子園ナイター（1985春・#7）
+
+⚠️ 球団章・スコアボードの文字を描かせない（商標）。
+
+```
+A tall vertical 9:16 cinematic photograph: a night baseball stadium under bright floodlights, seen from the empty stands looking toward the glowing green infield, 1980s Japan. Deep night sky above, warm stadium light haze. Nostalgic and grand. No people, no team logos, no text, no scoreboard text, no watermark. Green field and warm light against dark sky. The center and lower half must stay dark and uncluttered for overlaid text. Photographic, shallow depth of field, film grain, vertical 9:16.
+```
+
+## summer-poster-night.png ／ 「生きろ。」の夏（1997夏・#8）
+
+⚠️ 映画のポスター意匠・コピーそのものは描かせない（著作権）。**空白の掲示板**にして「気配」だけ作る。
+
+```
+A tall vertical 9:16 cinematic photograph: a Japanese city street at night in high summer, 1997. A large blank illuminated poster board or signboard glows softly on a station pillar or building wall, its surface empty (no readable image or text). Humid summer air, faint neon, the sense of a hot night in the city. No people, no text, no poster art, no logos, no watermark. Warm amber and deep teal night tones. The center and lower half must stay dark and uncluttered for overlaid text. Photographic, shallow depth of field, film grain, vertical 9:16.
+```
+
+## sydney-dawn.png ／ 坂を駆け上がった朝（2000秋・#9）
+
+⚠️ 五輪マーク・選手の顔を描かせない。**無人の坂と夜明け**で「あの朝」の気配を作る。
+
+```
+A tall vertical 9:16 cinematic photograph: an empty road climbing a gentle hill at dawn, faint mist, the first golden light breaking over the crest of the slope. Quiet, hopeful, the feeling of a morning after a long night. No people, no text, no logos, no watermark. Cool blue shadows in the foreground giving way to warm dawn light at the top of the hill. The center and lower half must stay dark and uncluttered for overlaid text. Photographic, shallow depth of field, film grain, vertical 9:16.
+```
+
+---
+
+## ⚠️ Geminiの透かし（✦）は必ず消す
+
+Geminiの出力は**右下に✦の透かし**が入る（2026-07-17 実測: 768×1376 の画像で **x624-671 / y1232-1279**）。
+レンダは 768→1080 に拡大するので、**そのままだと動画に写り込む**。
+
+```
+node scripts/shorts/strip-watermark.mjs <原本.png> assets/shorts/backgrounds/<filename>.png
+```
+
+境界からの双一次補間で埋める（単純な近傍パッチのコピーだと、konbiniのような**斜めの帯**に矩形の跡が残る）。
+
 ## 使い方
 
 1. 上のプロンプトでGeminiに生成（9:16・複数候補から選ぶ）
-2. `assets/shorts/backgrounds/{filename}` に保存（gitignore対象。バイナリはコミットしない運用）
+2. **原本を `redial/SNS/youtube/` に保存**（Geminiは同じ絵を二度と出さない＝失うと復元不可）
+3. 透かしを消して `assets/shorts/backgrounds/{filename}` に保存（gitignore対象＝**ここのバイナリはコミットしない**。原本がredial gitにあり、上のスクリプトでいつでも作り直せる）
 3. レンダ時に `--bg purikura-night.png` のように指定（manifestの `bg` フィールドにも同名で設定済み）
 4. CLIが自動で暗転＋ビネット＋ゆっくりズーム（Ken Burns）を適用する。**もし特定画像で字幕が読みにくければ** `render.mjs` の `eq=brightness` を下げるか、その画像を暗めに再生成
 

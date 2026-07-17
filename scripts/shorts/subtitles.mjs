@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import { assTime, normalizeForCompare } from './util.mjs';
 
 const SEASON_JP = { spring: '春', summer: '夏', autumn: '秋', winter: '冬' };
-const MAX_LINE = 15; // 1行の全角目安。超えたらフレーズ境界で1回改行、なお長ければlibass自動折返し
+const MAX_LINE = 15; // 1行の全角目安（フォント56px・使用幅936px≒16.7字ぶん）。超えたら改行する
 const SPLIT_EVENT = 34; // これを超えるsegmentは時間比で2イベントに分割
 
 /** ASSテキスト用エスケープ（改行・オーバーライド記号の暴発防止） */
@@ -29,12 +29,48 @@ function toPhrases(text) {
     .filter(Boolean);
 }
 
-/** フレーズ配列を1つの表示テキストに。長い場合はフレーズ境界（中央寄り・句読点優先）で1回だけ \N。 */
+/** 表示幅（全角=1・半角=0.5）。visLenは比較用の正規化（読点除去・カナ化）で表示幅ではない。 */
+const dispLen = (s) => Array.from(s ?? '')
+  .reduce((n, ch) => n + (/[\x00-\xFF｡-ﾟ]/.test(ch) ? 0.5 : 1), 0);
+
+/** 折り返しの最小単位。全角は1文字＝1トークン、半角の連続（1995 / ReDial 等）は割らずに1トークン。 */
+function tokenizeJa(s) {
+  const toks = [];
+  let buf = '';
+  for (const ch of Array.from(s ?? '')) {
+    if (/[0-9A-Za-z]/.test(ch)) { buf += ch; continue; }
+    if (buf) { toks.push(buf); buf = ''; }
+    toks.push(ch);
+  }
+  if (buf) toks.push(buf);
+  return toks;
+}
+
+/** ⚠️ libassは空白の無い日本語を自動折返ししない（WrapStyle:0は空白でしか折らない）。
+ *  2026-07-16にアンカー側で判明し、ショートも同じ穴だった（読点の無い長文が画面外へ溢れる）。
+ *  文字数で折るが、西暦や英単語は割らず、行頭に来てはいけない約物は前行に残す。 */
+function wrapJa(s, max = MAX_LINE) {
+  const t = (s ?? '').trim();
+  if (!t || dispLen(t) <= max) return t;
+  const CLOSER = /^[、。，．！？!?」』）\]｝・ー…ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮ]$/;
+  const lines = [];
+  let cur = '';
+  for (const tok of tokenizeJa(t)) {
+    if (cur && dispLen(cur) + dispLen(tok) > max && !CLOSER.test(tok)) { lines.push(cur); cur = ''; }
+    cur += tok;
+  }
+  if (cur) lines.push(cur);
+  return lines.join('\\N');
+}
+
+/** フレーズ配列を1つの表示テキストに。長い場合はフレーズ境界（中央寄り・句読点優先）で改行し、
+ *  それでも1行が長いときは wrapJa で強制的に折る。 */
 function renderLine(phrases) {
   const escaped = phrases.map(assEscape).filter(Boolean);
   if (!escaped.length) return '';
   const total = visLen(escaped.join(''));
-  if (total <= MAX_LINE || escaped.length === 1) return escaped.join('');
+  if (total <= MAX_LINE) return escaped.join('');
+  if (escaped.length === 1) return wrapJa(escaped[0]);
 
   const cum = [];
   let acc = 0;
@@ -47,7 +83,9 @@ function renderLine(phrases) {
     const cost = Math.abs(cum[i] - half) - (afterPunct ? 3 : 0);
     if (cost < bestCost) { bestCost = cost; bestIdx = i; }
   }
-  return escaped.slice(0, bestIdx + 1).join('') + '\\N' + escaped.slice(bestIdx + 1).join('');
+  const a = wrapJa(escaped.slice(0, bestIdx + 1).join(''));
+  const b = wrapJa(escaped.slice(bestIdx + 1).join(''));
+  return [a, b].filter(Boolean).join('\\N');
 }
 
 /** Whisper segments → 字幕イベント（クリップ相対時刻）。events = [{start,end,text}] */
@@ -136,14 +174,18 @@ export function buildAss({ assPath, segments, win, year, season, title, subsOver
   // エンドカード＝感情の宛先をReDialに書き換える装置（Fable 2026-07-13 マーケ再設計）。
   // 型B（--song）: 曲予告クリフハンガー「♪ ここで『◯◯』が流れます／音楽つきのフル版は、ReDialで。」
   // 型A/C（既定）: 「♪ この続きに、あの頃の曲が流れます／ReDial——あなたの季節に、もう一度。」
+  // 曲名が長いと1行に収まらない（Endcard fs66・使用幅900px）→ wrapJaで折る
   const endcard = songCard
-    ? `♪ ここで「${assEscape(songCard)}」が流れます\\N{\\fs40\\c&H00C8C8C8&}音楽つきのフル版は、ReDialで。`
+    ? `${wrapJa(`♪ ここで「${assEscape(songCard)}」が流れます`, 19)}\\N{\\fs40\\c&H00C8C8C8&}音楽つきのフル版は、ReDialで。`
     : `♪ この続きに、あの頃の曲が流れます\\N{\\fs40\\c&H00C8C8C8&}ReDial ——あなたの季節に、もう一度。`;
   events.push(`Dialogue: 0,${assTime(dur)},${assTime(total)},Endcard,,0,0,0,,${endcard}`);
   if (title) {
     // 冒頭に「何の話か」を平易に提示＋シンヤ名乗りで「これは深夜DJラジオ」という正体を毎回運ぶ。
     const djLine = djName ? `\\N{\\fs32\\c&H00B0B0B0&}${assEscape(djName)}` : '';
-    events.push(`Dialogue: 0,${assTime(0)},${assTime(Math.min(3.6, dur))},Endcard,,0,0,1140,,{\\fs54\\c&H00F0F0F0&}${assEscape(title)}${djLine}`);
+    // タイトルは長いと左右に溢れる（YouTube用のSEOタイトルをそのまま画面に出しているため）。
+    // fs54は実測で1字=37.2px・使用幅900px（1080-90-90）→ 収まる上限24字。安全側で23。
+    const cardText = wrapJa(assEscape(title), 23);
+    events.push(`Dialogue: 0,${assTime(0)},${assTime(Math.min(3.6, dur))},Endcard,,0,0,1140,,{\\fs54\\c&H00F0F0F0&}${cardText}${djLine}`);
   }
 
   const ass = [
