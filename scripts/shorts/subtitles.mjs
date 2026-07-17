@@ -18,13 +18,16 @@ function assEscape(s) {
 
 const visLen = (s) => normalizeForCompare(s).length;
 
-/** segment.text → フレーズ配列（空白＝間、読点直後で分割・単語は割らない） */
+/** segment.text → フレーズ配列（空白＝間、読点直後で分割・単語は割らない）
+ *  ⚠️ 句点の直後に閉じ括弧が続く「…なさい。」と書いた」のような並びで機械的に割ると、
+ *     「」」だけが次行の先頭に取り残される（2026-07-17 1995春で露見）。閉じ括弧・読点が
+ *     続く場合は割らない（禁則）。 */
 function toPhrases(text) {
   return (text ?? '')
     .trim()
     .replace(/^[、。」』）・\s]+/, '')
     .split(/\s+/)
-    .flatMap((p) => p.split(/(?<=[、。])/))
+    .flatMap((p) => p.split(/(?<=[、。])(?![」』）\]｝、。・])/))
     .map((p) => p.trim())
     .filter(Boolean);
 }
