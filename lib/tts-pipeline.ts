@@ -13,6 +13,7 @@ import path from 'path';
 import OpenAI from 'openai';
 import { splitIntoChunks, subdivideChunkText, type Chunk } from './tts-chunker';
 import { verifyChunkAudio, type VerifyResult } from './tts-verifier';
+import { logApiUsage } from './usage-log';
 
 const openai = new OpenAI();
 
@@ -79,14 +80,21 @@ export type PipelineResult = {
   totalAttempts: number;
 };
 
-export async function runTTSPipeline(cleanText: string): Promise<PipelineResult> {
+export async function runTTSPipeline(
+  cleanText: string,
+  opts?: { generationId?: number | string | null },
+): Promise<PipelineResult> {
   const chunks = splitIntoChunks(cleanText);
   console.log(
     `[TTS pipeline] ${cleanText.length} chars → ${chunks.length} chunks ` +
       `(avg ${Math.round(cleanText.length / Math.max(1, chunks.length))} chars/chunk)`,
   );
 
-  const generated: GeneratedChunk[] = await ttsChunksInParallel(chunks, TTS_PARALLELISM);
+  const generated: GeneratedChunk[] = await ttsChunksInParallel(
+    chunks,
+    TTS_PARALLELISM,
+    opts?.generationId,
+  );
   const totalAttempts = generated.reduce((s, c) => s + c.attempts, 0);
 
   const tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'tts-concat-'));
@@ -106,6 +114,7 @@ export async function runTTSPipeline(cleanText: string): Promise<PipelineResult>
 async function ttsChunksInParallel(
   chunks: Chunk[],
   parallelism: number,
+  generationId?: number | string | null,
 ): Promise<GeneratedChunk[]> {
   const results: GeneratedChunk[] = new Array(chunks.length);
   let nextIdx = 0;
@@ -116,7 +125,7 @@ async function ttsChunksInParallel(
       const i = nextIdx++;
       if (i >= chunks.length) return;
       const chunk = chunks[i];
-      const generated = await generateAndVerifyChunk(chunk, workerId, chunks.length);
+      const generated = await generateAndVerifyChunk(chunk, workerId, chunks.length, 0, generationId);
       results[i] = generated;
       completed++;
       console.log(
@@ -133,6 +142,7 @@ async function ttsChunksInParallel(
     workerId: number,
     total: number,
     depth = 0,
+    generationId?: number | string | null,
   ): Promise<GeneratedChunk> {
     const history: VerifyResult[] = [];
     /** 最良試行を保持（ok優先、次に類似度の高さ） */
@@ -141,7 +151,7 @@ async function ttsChunksInParallel(
     // 検証無効モード（Azure 等で安定している場合）: 1回生成して即返す
     if (!TTS_VERIFY) {
       const t0 = Date.now();
-      const mp3 = await ttsSingle(chunk.text);
+      const mp3 = await ttsSingle(chunk.text, generationId);
       const ttsMs = Date.now() - t0;
       const verify: VerifyResult = {
         ok: true,
@@ -160,13 +170,13 @@ async function ttsChunksInParallel(
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       const variantText = applyRetryVariant(chunk.text, attempt);
       const t0 = Date.now();
-      const mp3 = await ttsSingle(variantText);
+      const mp3 = await ttsSingle(variantText, generationId);
       const ttsMs = Date.now() - t0;
 
       const tv0 = Date.now();
       let verify: VerifyResult;
       try {
-        verify = await verifyChunkAudio(mp3, chunk.text);
+        verify = await verifyChunkAudio(mp3, chunk.text, generationId);
       } catch (e) {
         console.warn(
           `[TTS chunk ${chunk.index}] verify error (attempt ${attempt}): ${(e as Error).message}`,
@@ -213,6 +223,7 @@ async function ttsChunksInParallel(
               workerId,
               total,
               depth + 1,
+              generationId,
             ),
           ),
         );
@@ -320,14 +331,19 @@ function applyRetryVariant(text: string, attempt: number): string {
   return '、' + v;
 }
 
-async function ttsSingle(text: string): Promise<Buffer> {
+async function ttsSingle(text: string, generationId?: number | string | null): Promise<Buffer> {
   if (TTS_PROVIDER === 'azure') {
-    return ttsSingleAzure(text);
+    return ttsSingleAzure(text, generationId);
   }
-  return ttsSingleOpenAI(text);
+  return ttsSingleOpenAI(text, generationId);
 }
 
-async function ttsSingleOpenAI(text: string): Promise<Buffer> {
+/** mp3バイト数から秒数を概算する（128kbps mono 前提。tts-verifier.ts / archive route.ts と同じ既存の慣例値）。 */
+function estimateAudioSeconds(mp3: Buffer): number {
+  return +(mp3.length / 16384).toFixed(1);
+}
+
+async function ttsSingleOpenAI(text: string, generationId?: number | string | null): Promise<Buffer> {
   const params: Parameters<typeof openai.audio.speech.create>[0] = {
     model: TTS_MODEL,
     voice: TTS_VOICE as Parameters<typeof openai.audio.speech.create>[0]['voice'],
@@ -337,7 +353,17 @@ async function ttsSingleOpenAI(text: string): Promise<Buffer> {
     (params as { instructions?: string }).instructions = TTS_INSTRUCTIONS;
   }
   const mp3 = await openai.audio.speech.create(params);
-  return Buffer.from(await mp3.arrayBuffer());
+  const buf = Buffer.from(await mp3.arrayBuffer());
+
+  void logApiUsage({
+    provider: 'openai',
+    model: TTS_MODEL,
+    purpose: 'tts',
+    units: { tts_chars: text.length, audio_seconds: estimateAudioSeconds(buf) },
+    generationId,
+  });
+
+  return buf;
 }
 
 function escapeXml(s: string): string {
@@ -349,7 +375,7 @@ function escapeXml(s: string): string {
     .replace(/'/g, '&apos;');
 }
 
-async function ttsSingleAzure(text: string): Promise<Buffer> {
+async function ttsSingleAzure(text: string, generationId?: number | string | null): Promise<Buffer> {
   if (!AZURE_SPEECH_KEY) {
     throw new Error('AZURE_SPEECH_KEY is not set');
   }
@@ -371,15 +397,29 @@ async function ttsSingleAzure(text: string): Promise<Buffer> {
     const body = await res.text();
     throw new Error(`Azure TTS ${res.status}: ${body.slice(0, 300)}`);
   }
-  return Buffer.from(await res.arrayBuffer());
+  const buf = Buffer.from(await res.arrayBuffer());
+
+  // Azure は文字数のみ記録（単価未確認・cost_usd は PRICING 未登録のため null）。
+  void logApiUsage({
+    provider: 'azure',
+    model: AZURE_SPEECH_VOICE,
+    purpose: 'tts',
+    units: { tts_chars: text.length },
+    generationId,
+  });
+
+  return buf;
 }
 
 /**
  * 編集ワークフロー向けの単発TTS。検証・リトライなしで1回だけ生成する
  * （ユーザーが手で直したテキストを生成するため、品質はテキスト側で担保済み前提）。
  */
-export async function generateSingleChunkMp3(text: string): Promise<Buffer> {
-  return ttsSingle(text);
+export async function generateSingleChunkMp3(
+  text: string,
+  generationId?: number | string | null,
+): Promise<Buffer> {
+  return ttsSingle(text, generationId);
 }
 
 /**

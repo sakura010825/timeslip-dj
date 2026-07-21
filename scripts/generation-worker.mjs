@@ -125,7 +125,7 @@ async function processJob(job) {
     // 1) 無人生成（batch-generate: generate → 年号かな化 → Layer3 → TTS → stockize）
     //    曲選択カスタマイズ: job.songs（generations.songs jsonb・選択曲IDの配列）があれば
     //    その曲だけで生成（must-use）。null/空 = お任せ（従来）。
-    const batchArgs = ['scripts/batch-generate.mjs', '--targets', `${job.year}-${job.season}`, '--slug-suffix', suffix, '--base', BASE];
+    const batchArgs = ['scripts/batch-generate.mjs', '--targets', `${job.year}-${job.season}`, '--slug-suffix', suffix, '--base', BASE, '--generation-id', String(job.id)];
     if (Array.isArray(job.songs) && job.songs.length > 0) {
       batchArgs.push('--song-ids', job.songs.join(','));
     }

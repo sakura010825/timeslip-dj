@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { KnowledgeItem } from './knowledge-loader';
+import { logApiUsage } from './usage-log';
 
 /**
  * Layer 3: 自動グラウンディング検証
@@ -114,8 +115,9 @@ function extractJson(text: string): unknown {
 export async function verifyGrounding(params: {
   scriptText: string;
   knowledgeItems: KnowledgeItem[];
+  generationId?: number | string | null;
 }): Promise<GroundingReport> {
-  const { scriptText, knowledgeItems } = params;
+  const { scriptText, knowledgeItems, generationId } = params;
   const client = getClient();
 
   const response = await client.messages.create({
@@ -123,6 +125,17 @@ export async function verifyGrounding(params: {
     max_tokens: 2048,
     system: [{ type: 'text', text: VERIFIER_SYSTEM }],
     messages: [{ role: 'user', content: buildVerifierPrompt(scriptText, knowledgeItems) }],
+  });
+
+  void logApiUsage({
+    provider: 'anthropic',
+    model: VERIFIER_MODEL,
+    purpose: 'grounding_verify',
+    units: {
+      input_tokens: response.usage.input_tokens,
+      output_tokens: response.usage.output_tokens,
+    },
+    generationId,
   });
 
   const rawText = response.content

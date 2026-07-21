@@ -51,12 +51,15 @@ const opts = {
   songIds: args['song-ids']
     ? String(args['song-ids']).split(',').map((s) => s.trim()).filter(Boolean)
     : null,
+  // API使用量記録（Supabase api_usage）の紐付け用。generation-worker.mjs がジョブID(generations.id)を
+  // 渡す。batch-generate.mjs 単体実行（事前プール制作）では未指定 = null で記録される。
+  generationId: args['generation-id'] ?? null,
 };
 const targets = parseTargets(args);
 
 if (targets.length === 0) {
   console.error(
-    'usage: node scripts/batch-generate.mjs --targets 1990-autumn,1995-summer [--slug-suffix -pooltest] [--base http://localhost:3000] [--critical-threshold N]',
+    'usage: node scripts/batch-generate.mjs --targets 1990-autumn,1995-summer [--slug-suffix -pooltest] [--base http://localhost:3000] [--critical-threshold N] [--generation-id N]',
   );
   process.exit(1);
 }
@@ -100,6 +103,7 @@ async function processOne(t, opts) {
     year: t.year,
     season: t.season,
     ...(opts.songIds ? { songIds: opts.songIds } : {}),
+    ...(opts.generationId != null ? { generationId: opts.generationId } : {}),
   });
   const segments = script.segments;
   if (!Array.isArray(segments) || segments.length !== 5) {
@@ -135,6 +139,7 @@ async function processOne(t, opts) {
       year: t.year,
       season: t.season,
       scriptText,
+      ...(opts.generationId != null ? { generationId: opts.generationId } : {}),
     });
     const cc = report.criticalCount ?? 0;
     const mc = report.minorCount ?? 0;
@@ -173,6 +178,7 @@ async function processOne(t, opts) {
         year: t.year,
         season: t.season,
       },
+      ...(opts.generationId != null ? { generationId: opts.generationId } : {}),
     });
     archiveIds.push(tts.archiveId);
     console.log(`✓ ${tts.archiveId} (${tts.chunks?.length ?? '?'} chunks)`);

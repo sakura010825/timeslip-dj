@@ -21,13 +21,14 @@ export async function POST(req: Request) {
     const yearNum = Number(body.year);
     const season: string = body.season ?? monthToSeason(Number(body.month));
     const scriptText: string = body.scriptText;
+    const generationId: number | string | null = body.generationId != null ? body.generationId : null;
 
     if (typeof scriptText !== 'string' || scriptText.trim().length === 0) {
       return NextResponse.json({ error: 'scriptText が空です' }, { status: 400 });
     }
 
     const kb = loadKnowledgeBase(yearNum, season);
-    const report = await verifyGrounding({ scriptText, knowledgeItems: kb.items });
+    const report = await verifyGrounding({ scriptText, knowledgeItems: kb.items, generationId });
 
     return NextResponse.json({
       ...report,

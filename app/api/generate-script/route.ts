@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { loadKnowledgeBase, monthToSeason } from '@/lib/knowledge-loader';
 import { selectTopics } from '@/lib/topic-selector';
 import { SHINYA_SYSTEM_PROMPT, buildScriptPrompt } from '@/lib/shinya-prompt';
+import { logApiUsage } from '@/lib/usage-log';
 
 const MODEL_ID = 'claude-sonnet-4-6';
 
@@ -24,6 +25,10 @@ export async function POST(req: Request) {
     const body = await req.json();
     const yearNum = Number(body.year);
     const season: string = body.season ?? monthToSeason(Number(body.month));
+    // オンデマンド生成（generation-worker.mjs → batch-generate.mjs）経由なら generations.id が乗る。
+    // 事前プール制作（batch-generate.mjs 単体実行）では未指定 = null。
+    const generationId: number | string | null =
+      body.generationId != null ? body.generationId : null;
 
     const kb = loadKnowledgeBase(yearNum, season);
     // music はトピック抽選から除外する。楽曲は下の musicPool（楽曲候補リスト）として別枠で渡すため、
@@ -82,6 +87,19 @@ export async function POST(req: Request) {
       .filter((block) => block.type === 'text')
       .map((block) => (block as { type: 'text'; text: string }).text)
       .join('\n');
+
+    // fail-open: 使用量記録の失敗が台本生成の成否に影響しないよう await はするが例外は投げない実装
+    // （lib/usage-log.ts 側で握りつぶす）。
+    void logApiUsage({
+      provider: 'anthropic',
+      model: MODEL_ID,
+      purpose: 'script',
+      units: {
+        input_tokens: response.usage.input_tokens,
+        output_tokens: response.usage.output_tokens,
+      },
+      generationId,
+    });
 
     const parsed = extractJson(rawText) as Record<string, unknown>;
 

@@ -21,8 +21,14 @@
 
 import OpenAI from 'openai';
 import { toFile } from 'openai/uploads';
+import { logApiUsage } from './usage-log';
 
 const openai = new OpenAI();
+
+/** mp3バイト数から秒数を概算する。128kbps mono 前提（tts-pipeline.ts/route.ts と同じ既存の慣例値）。 */
+function estimateAudioSeconds(mp3: Buffer): number {
+  return +(mp3.length / 16384).toFixed(1);
+}
 
 const GAP_THRESHOLD = 5;
 const SIMILARITY_WARN = 0.8;
@@ -43,12 +49,16 @@ export type VerifyResult = {
   reason?: string;
 };
 
-export async function verifyChunkAudio(mp3: Buffer, expectedText: string): Promise<VerifyResult> {
-  const transcript = await transcribeMp3(mp3);
+export async function verifyChunkAudio(
+  mp3: Buffer,
+  expectedText: string,
+  generationId?: number | string | null,
+): Promise<VerifyResult> {
+  const transcript = await transcribeMp3(mp3, generationId);
   return compareTexts(expectedText, transcript);
 }
 
-async function transcribeMp3(mp3: Buffer): Promise<string> {
+async function transcribeMp3(mp3: Buffer, generationId?: number | string | null): Promise<string> {
   const file = await toFile(mp3, 'chunk.mp3', { type: 'audio/mpeg' });
   const res = await openai.audio.transcriptions.create({
     file,
@@ -56,6 +66,15 @@ async function transcribeMp3(mp3: Buffer): Promise<string> {
     language: 'ja',
     response_format: 'text',
   });
+
+  void logApiUsage({
+    provider: 'openai',
+    model: 'whisper-1',
+    purpose: 'whisper_verify',
+    units: { audio_seconds: estimateAudioSeconds(mp3) },
+    generationId,
+  });
+
   return typeof res === 'string' ? res : (res as { text?: string }).text ?? '';
 }
 

@@ -43,10 +43,11 @@ function badRequest(msg: string) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { archiveId, chunkIndex, newText } = body as {
+    const { archiveId, chunkIndex, newText, generationId } = body as {
       archiveId?: string;
       chunkIndex?: number;
       newText?: string;
+      generationId?: number | string | null;
     };
 
     if (typeof archiveId !== 'string' || !archiveId) return badRequest('archiveId required');
@@ -91,7 +92,7 @@ export async function POST(req: Request) {
     );
 
     const t0 = Date.now();
-    const newMp3 = await generateSingleChunkMp3(cleanedText);
+    const newMp3 = await generateSingleChunkMp3(cleanedText, generationId ?? null);
     const ttsMs = Date.now() - t0;
 
     // 新チャンクMP3を上書き保存

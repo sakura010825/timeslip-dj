@@ -130,6 +130,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { text } = body;
     const metadata: TtsMetadata = body.metadata ?? {};
+    const generationId: number | string | null = body.generationId != null ? body.generationId : null;
 
     if (typeof text !== 'string' || text.length === 0) {
       return NextResponse.json({ error: 'text が空です' }, { status: 400 });
@@ -149,7 +150,7 @@ export async function POST(req: Request) {
     console.log(`[TTS ${segLabel}] start: ${text.length} → ${clean.length} chars`);
 
     const t0 = Date.now();
-    const result = await runTTSPipeline(clean);
+    const result = await runTTSPipeline(clean, { generationId });
     const pipelineMs = Date.now() - t0;
     console.log(
       `[TTS ${segLabel}] done: ${result.totalChunks} chunks, ${result.totalAttempts} attempts, ` +
