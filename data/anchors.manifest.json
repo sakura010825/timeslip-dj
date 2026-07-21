@@ -83,7 +83,8 @@
           "label": "1990年の春は、そういう季節でした"
         }
       ],
-      "bg": "radio-booth-night.png"
+      "bg": "radio-booth-night.png",
+      "url": "https://youtu.be/NgvIBrEXzg4"
     },
     {
       "id": 2,
@@ -167,7 +168,8 @@
           "label": "あなたはその秋、どこにいましたか"
         }
       ],
-      "bg": "radio-booth-night.png"
+      "bg": "radio-booth-night.png",
+      "url": "https://youtu.be/AepHEijflj4"
     },
     {
       "id": 3,
@@ -302,7 +304,8 @@
           "label": "ドラクエIV——机の上のカートリッジ"
         }
       ],
-      "bg": "radio-booth-night.png"
+      "bg": "radio-booth-night.png",
+      "url": "https://youtu.be/oNPozTc_TU8"
     }
   ]
 }
