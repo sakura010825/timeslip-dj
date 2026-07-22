@@ -19,6 +19,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { readJson, OUT_ROOT } from './shorts/util.mjs';
+import { buildDescription } from './shorts/post-meta.mjs';
 
 const SHORTS_OUT = path.resolve(OUT_ROOT); // output/shorts
 const anchorsM = readJson(path.resolve('data', 'anchors.manifest.json'));
@@ -91,7 +92,7 @@ ${j.title}
 
 **説明**（そのまま全部貼る・末尾にプロフィールリンク導線とハッシュタグ入り）
 \`\`\`
-${j.description}
+${buildDescription({ cell: j.cell, title: j.title, utm: j.utm })}
 \`\`\`
 
 **関連動画**（この動画にリンクする長尺）
@@ -108,7 +109,8 @@ blocks.push(`
 
 1. **全本の「関連動画」がアンカー（1990春）を指しているか**を1本ずつ確認（二段導線の要）
 2. ショート用の再生リスト（任意）にまとめておくと後で導線を張り替えやすい
-3. 数字を読む: 類型別に維持率 / プロフィールリンクのクリック / サイト側 UTM（\`utm_medium=shorts\`）/ 登録。Vercel Analytics で \`utm\` 付き着地が見える
+3. 数字を読む: 類型別に維持率 / プロフィールリンクのクリック / サイト側 UTM（\`utm_medium=short\`）/ 登録。
+   **サイト側は \`/admin\` の「2. ファネル・会員KPI」の 訪問(landing) と「4. SNS反応」で見る**（Vercel Analytics でも見える）
 
 ## 字幕について
 
