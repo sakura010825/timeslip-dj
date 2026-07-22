@@ -27,10 +27,14 @@ function runFfmpeg(args) {
   });
 }
 
-export async function renderShort({ mp3Path, win, bg, assPath, outMp4, endcardSec }) {
-  const dur = win.dur;
+/**
+ * clips = [{ mp3Path, win }, ...]。型A/型Bは1要素、型C（走馬灯）はエピソード各所からの
+ * 断片を並べるので複数要素になる。断片の境目は 0.12s のフェードで繋ぐ（無処理だと
+ * 波形の不連続がプチッと鳴る）。
+ */
+export async function renderShort({ clips, bg, assPath, outMp4, endcardSec }) {
+  const dur = +clips.reduce((s, c) => s + c.win.dur, 0).toFixed(3);
   const total = +(dur + endcardSec).toFixed(3);
-  const totalFrames = Math.round(total * FPS);
 
   const assArg = `subtitles=filename='${ffPath(assPath)}':fontsdir='${ffPath(FONTS_DIR)}'`;
 
@@ -59,12 +63,26 @@ export async function renderShort({ mp3Path, win, bg, assPath, outMp4, endcardSe
     bgChain = `[0:v]vignette=PI/6,setsar=1[bg]`;
   }
 
-  // 音声入力（切り出し）
-  inputs.push('-ss', String(win.t0), '-t', String(dur), '-i', mp3Path);
+  // 音声入力（断片ごとに切り出し）。入力番号は背景が[0]なので 1..N。
+  for (const c of clips) {
+    inputs.push('-ss', String(c.win.t0), '-t', String(c.win.dur), '-i', c.mp3Path);
+  }
+
+  // 断片ごとに境目のクリック音を消してから連結する。
+  const clipChains = clips.map((c, i) => {
+    const d = c.win.dur;
+    const fo = Math.max(0, d - 0.12);
+    return `[${i + 1}:a]afade=t=in:st=0:d=0.12,afade=t=out:st=${fo}:d=0.12[c${i}]`;
+  });
+  const concatChain = clips.length > 1
+    ? `${clips.map((_, i) => `[c${i}]`).join('')}concat=n=${clips.length}:v=0:a=1[acat]`
+    : `[c0]anull[acat]`;
 
   const filter = [
     bgChain,
-    `[1:a]asplit=2[awav][a0]`,
+    ...clipChains,
+    concatChain,
+    `[acat]asplit=2[awav][a0]`,
     // ⚠️ draw=full は必須。既定の draw=scale は「1列に当たったサンプル数」で輝度を割るため、
     // 幅1080px×rate30 では1列あたり約1.4サンプルしか無く、波形が最大輝度80＝ほぼ見えない
     // （2026-07-16 アンカー側で発覚し、ショートも同じ穴だったことが判明）。

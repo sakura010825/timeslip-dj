@@ -85,7 +85,7 @@ for (const { j } of metas) {
   blocks.push(`
 ---
 
-## #${j.id} ${j.hook}（${j.cell}・${j.window?.dur ? Math.round(j.window.dur) + '秒' : ''}）${j.song ? `— **型B 曲予告**「${j.song}」` : '— 型A 題材'} ／ 客層: ${j.audience ?? '—'}
+## #${j.id} ${j.hook}（${j.cell}・${j.window?.dur ? Math.round(j.window.dur) + '秒' : ''}）${j.song ? `— **型B 曲予告**「${j.song}」` : j.walkingFlame ? '— **型C 走馬灯**（年ダイヤルのデモ）' : '— 型A 題材'} ／ 客層: ${j.audience ?? '—'}
 
 **動画ファイル**
 \`\`\`
@@ -99,7 +99,7 @@ ${j.title}
 
 **説明**（そのまま全部貼る・末尾にプロフィールリンク導線とハッシュタグ入り）
 \`\`\`
-${buildDescription({ cell: j.cell, title: j.title, utm: j.utm, song: j.song })}
+${buildDescription({ cell: j.cell, title: j.title, utm: j.utm, song: j.song, walkingFlame: j.walkingFlame })}
 \`\`\`
 
 **関連動画**（この動画にリンクする長尺）

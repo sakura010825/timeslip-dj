@@ -163,8 +163,12 @@ function applyFixes(text, fixes) {
   return t;
 }
 
-export function buildAss({ assPath, segments, win, year, season, title, subsOverride, endcardSec, djName, songCard, fixes }) {
-  const dur = win.dur;
+/**
+ * clips = [{ segments, win }, ...]。型A/型Bは1要素、型C（走馬灯）は複数。
+ * 断片ごとに時刻を先頭からの通算へ寄せて1本の字幕トラックにする。
+ */
+export function buildAss({ assPath, clips, year, season, title, subsOverride, endcardSec, djName, songCard, walkingFlame, fixes }) {
+  const dur = clips.reduce((s, c) => s + c.win.dur, 0);
   const total = dur + endcardSec;
   const seasonJP = SEASON_JP[season] ?? '';
 
@@ -174,8 +178,15 @@ export function buildAss({ assPath, segments, win, year, season, title, subsOver
     const slot = dur / Math.max(1, lines.length);
     subEvents = lines.map((text, i) => ({ start: i * slot, end: (i + 1) * slot, text: assEscape(applyFixes(text, fixes)) }));
   } else {
-    const fixedSegments = (segments ?? []).map((s) => ({ ...s, text: applyFixes(s.text, fixes) }));
-    subEvents = segmentsToEvents(fixedSegments, win.t0, win.t1);
+    subEvents = [];
+    let offset = 0;
+    for (const c of clips) {
+      const fixed = (c.segments ?? []).map((s) => ({ ...s, text: applyFixes(s.text, fixes) }));
+      for (const e of segmentsToEvents(fixed, c.win.t0, c.win.t1)) {
+        subEvents.push({ ...e, start: e.start + offset, end: e.end + offset });
+      }
+      offset += c.win.dur;
+    }
   }
 
   const styles = [
@@ -194,9 +205,13 @@ export function buildAss({ assPath, segments, win, year, season, title, subsOver
   // 型B（--song）: 曲予告クリフハンガー「♪ ここで『◯◯』が流れます／音楽つきのフル版は、ReDialで。」
   // 型A/C（既定）: 「♪ この続きに、あの頃の曲が流れます／ReDial——あなたの季節に、もう一度。」
   // 曲名が長いと1行に収まらない（Endcard fs66・使用幅900px）→ wrapJaで折る
+  // 型C（走馬灯・複数断片）: 年という額縁で閉じ、**問い**で個人化へ渡す（Playbook §8.3）。
+  // 「あなたの◯は、何年ですか」＝ 最初のひと回（年×季節を編む）への導火線。
   const endcard = songCard
     ? `${wrapJa(`♪ ここで「${assEscape(songCard)}」が流れます`, 19)}\\N{\\fs40\\c&H00C8C8C8&}音楽つきのフル版は、ReDialで。`
-    : `♪ この続きに、あの頃の曲が流れます\\N{\\fs40\\c&H00C8C8C8&}ReDial ——あなたの季節に、もう一度。`;
+    : walkingFlame
+      ? `${wrapJa(`ぜんぶ、${year}年の${seasonJP}です。`, 19)}\\N{\\fs40\\c&H00C8C8C8&}あなたの${seasonJP}は、何年ですか。 ——ReDial`
+      : `♪ この続きに、あの頃の曲が流れます\\N{\\fs40\\c&H00C8C8C8&}ReDial ——あなたの季節に、もう一度。`;
   events.push(`Dialogue: 0,${assTime(dur)},${assTime(total)},Endcard,,0,0,0,,${endcard}`);
   if (title) {
     // 冒頭に「何の話か」を平易に提示＋シンヤ名乗りで「これは深夜DJラジオ」という正体を毎回運ぶ。
