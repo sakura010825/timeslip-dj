@@ -1,94 +1,303 @@
 {
   "_note": "Playbook §5『最初の10本』の宣言化。start/end はPlaybook由来のアンカー句で、Whisper transcript（漢字正規化済）に対しfuzzyマッチする。#1のみdry-run検証済(score 1/1)。残り9本は投稿前に `--only N --dry-run` で窓・尺・一致スコアを必ず確認すること（かな表記の句『そのさんがつ』等は漢字transcriptと一致しない可能性→固有名詞/数字を含む句に調整）。設計: redial/docs/SHORTS_CLI_DESIGN_2026-07.md §8",
-  "utm": { "source": "youtube", "medium": "shorts" },
+  "utm": {
+    "source": "youtube",
+    "medium": "short"
+  },
   "shorts": [
     {
-      "id": 1, "cell": "1995-spring", "seg": 1,
+      "id": 1,
+      "cell": "1995-spring",
+      "seg": 1,
       "start": "最後まで残っていた六甲道駅は",
       "end": "関西の人は知っている。",
       "hook": "駅の段ボール",
       "title": "「おかえりなさい」と書いた段ボール——1995年春、六甲道駅",
-      "bg": "night-station.png", "audience": "関西・40〜60代",
-      "fixes": [["高架線網路とも","高架線もろとも"],["崩れた路板","崩れた路盤"],["高までジャッキ","高さまでジャッキ"],["三品田から","西灘から"]],
+      "bg": "night-station.png",
+      "audience": "関西・40〜60代",
+      "fixes": [
+        [
+          "高架線網路とも",
+          "高架線もろとも"
+        ],
+        [
+          "崩れた路板",
+          "崩れた路盤"
+        ],
+        [
+          "高までジャッキ",
+          "高さまでジャッキ"
+        ],
+        [
+          "三品田から",
+          "西灘から"
+        ]
+      ],
       "verified": true
     },
     {
-      "id": 2, "cell": "1988-autumn", "seg": 2,
+      "id": 2,
+      "cell": "1988-autumn",
+      "seg": 2,
       "start": "そして、ほとんど誰も知らないまま",
       "end": "それもまた、時間のいたずら。",
       "hook": "B'zデビュー",
       "title": "B'zのデビュー曲は、誰にも聴かれなかった",
-      "bg": "cassette-night.png", "audience": "音楽ファン全世代",
-      "fixes": [["松本隆博","松本孝弘"],["稲葉孝司","稲葉浩志"],["シャート","チャート"]]
+      "bg": "cassette-night.png",
+      "audience": "音楽ファン全世代",
+      "fixes": [
+        [
+          "松本隆博",
+          "松本孝弘"
+        ],
+        [
+          "稲葉孝司",
+          "稲葉浩志"
+        ],
+        [
+          "シャート",
+          "チャート"
+        ]
+      ]
     },
     {
-      "id": 3, "cell": "1995-autumn-09", "seg": 2,
+      "id": 3,
+      "cell": "1995-autumn-09",
+      "seg": 2,
       "start": "スマートフォンも、ソーシャル・ネットワーキング・サービスも",
       "end": "むしろ豊かだったかもしれない、と私は今でも思っています。",
       "hook": "プリクラ財布の一枚",
       "title": "クラウドの1万枚より、財布の中の1枚",
-      "bg": "purikura-night.png", "audience": "40代女性（プリクラ世代）"
+      "bg": "purikura-night.png",
+      "audience": "40代女性（プリクラ世代）"
     },
     {
-      "id": 4, "cell": "2000-spring", "seg": 3,
+      "id": 4,
+      "cell": "2000-spring",
+      "seg": 3,
       "start": "私は、あの電車の中の光景を選びます",
       "end": "窓の外の桜を見ていた。",
       "hook": "親指の革命",
       "title": "2000年の春、親指の静かな革命",
-      "bg": "train-window-spring.png", "audience": "ガラケー郷愁・全世代",
-      "fixes": [["視線をおどした","視線を落とした"]]
+      "bg": "train-window-spring.png",
+      "audience": "ガラケー郷愁・全世代",
+      "fixes": [
+        [
+          "視線をおどした",
+          "視線を落とした"
+        ]
+      ]
     },
     {
-      "id": 5, "cell": "1990-winter", "seg": 1,
+      "id": 5,
+      "cell": "1990-winter",
+      "seg": 1,
       "start": "深夜のコンビニには",
       "end": "私はどこか好ましく思っていた。",
       "hook": "深夜のコンビニ",
       "title": "深夜のコンビニが、いちばん平等だった",
-      "bg": "konbini-night.png", "audience": "バブル期の働き手",
-      "fixes": [["ネクタクを緩めた","ネクタイを緩めた"]]
+      "bg": "konbini-night.png",
+      "audience": "バブル期の働き手",
+      "fixes": [
+        [
+          "ネクタクを緩めた",
+          "ネクタイを緩めた"
+        ]
+      ]
     },
     {
-      "id": 6, "cell": "1991-spring", "seg": 1,
+      "id": 6,
+      "cell": "1991-spring",
+      "seg": 1,
       "start": "賑わいといえば",
       "end": "あなたはまだ覚えていますか。",
       "hook": "対戦台の文化",
       "title": "波動拳。1991年春、対戦台という文化が生まれた",
-      "bg": "arcade-night.png", "audience": "ゲーマー男性40〜50代",
-      "fixes": [["ミディワイといえば","賑わいといえば"]]
+      "bg": "arcade-night.png",
+      "audience": "ゲーマー男性40〜50代",
+      "fixes": [
+        [
+          "ミディワイといえば",
+          "賑わいといえば"
+        ]
+      ]
     },
     {
-      "id": 7, "cell": "1985-spring", "seg": 1,
+      "id": 7,
+      "cell": "1985-spring",
+      "seg": 1,
       "start": "甲子園",
       "end": "動き始めた春の夜のこと。",
       "hook": "バックスクリーン三連発",
       "title": "甲子園、七回裏。三本の弧がバックスクリーンへ",
-      "bg": "stadium-night.png", "audience": "阪神ファン・50〜60代",
-      "fixes": [["階裏","回裏"],["かけふまさゆき","掛布雅之"],["岡田明信","岡田彰布"],["本類だ","本塁打"],["牧原ひろみ","槙原寛己"]]
+      "bg": "stadium-night.png",
+      "audience": "阪神ファン・50〜60代",
+      "fixes": [
+        [
+          "階裏",
+          "回裏"
+        ],
+        [
+          "かけふまさゆき",
+          "掛布雅之"
+        ],
+        [
+          "岡田明信",
+          "岡田彰布"
+        ],
+        [
+          "本類だ",
+          "本塁打"
+        ],
+        [
+          "牧原ひろみ",
+          "槙原寛己"
+        ]
+      ]
     },
     {
-      "id": 8, "cell": "1997-summer", "seg": 0,
+      "id": 8,
+      "cell": "1997-summer",
+      "seg": 0,
       "start": "あの夏、街には一つの言葉が",
       "end": "産声を上げた、あの夏のことです。",
       "hook": "生きろ。の夏",
       "title": "「生きろ。」が駅の柱から目を合わせてきた夏",
-      "bg": "summer-poster-night.png", "audience": "ジブリ・フェス世代"
+      "bg": "summer-poster-night.png",
+      "audience": "ジブリ・フェス世代"
     },
     {
-      "id": 9, "cell": "2000-autumn", "seg": 1,
+      "id": 9,
+      "cell": "2000-autumn",
+      "seg": 1,
       "start": "朝のことを、覚えていますか",
       "end": "あれは純粋に嬉しかった。",
       "hook": "坂を駆け上がった朝",
       "title": "サングラスを投げ捨てて、坂を駆け上がった朝",
-      "bg": "sydney-dawn.png", "audience": "五輪定番・全世代",
-      "fixes": [["墓橋直子","高橋尚子"]]
+      "bg": "sydney-dawn.png",
+      "audience": "五輪定番・全世代",
+      "fixes": [
+        [
+          "墓橋直子",
+          "高橋尚子"
+        ]
+      ]
     },
     {
-      "id": 10, "cell": "1993-autumn", "seg": 2,
+      "id": 10,
+      "cell": "1993-autumn",
+      "seg": 2,
       "start": "その秋、学校の廊下でも街でも",
       "end": "携帯電話が来る前の、あの微妙な距離感。",
       "hook": "ポケベルの距離感",
       "title": "ゼロハチヨンゼロ。数字で気持ちを伝えていた秋",
-      "bg": "pager-night.png", "audience": "コギャル世代女性"
+      "bg": "pager-night.png",
+      "audience": "コギャル世代女性"
+    },
+    {
+      "id": 11,
+      "cell": "1995-spring",
+      "seg": 3,
+      "start": "瓦礫の中で桜が咲いた",
+      "end": "今夜最後の一曲は、ユーミンです。",
+      "hook": "春よ来い予告",
+      "title": "瓦礫の隙間で、桜は例年通りに咲いた——1995年春",
+      "bg": "night-station.png",
+      "audience": "関西・40〜60代／ユーミン世代",
+      "song": "春よ、来い",
+      "verified": false,
+      "fixes": [
+        [
+          "神戸の町",
+          "神戸の街"
+        ],
+        [
+          "鼻の下",
+          "花の下"
+        ],
+        [
+          "雄鳴",
+          "ユーミン"
+        ]
+      ],
+      "padEnd": -0.5
+    },
+    {
+      "id": 12,
+      "cell": "1990-winter",
+      "seg": 0,
+      "start": "デパートのショーウィンドウは光っていて",
+      "end": "今夜は、そのあたりまで、少し戻ってみようと思います。",
+      "hook": "愛は勝つ予告",
+      "title": "まだ、時間が余っていた夜——1990年冬",
+      "bg": "konbini-night.png",
+      "audience": "50代前後／バブル末期",
+      "song": "愛は勝つ",
+      "verified": false,
+      "fixes": [
+        [
+          "つかまらなくて",
+          "捕まらなくて"
+        ],
+        [
+          "フリをしていた",
+          "ふりをしていた"
+        ]
+      ]
+    },
+    {
+      "id": 13,
+      "cell": "1997-summer",
+      "seg": 3,
+      "start": "液晶の前で夏が過ぎていった",
+      "end": "今夜最後の一曲は",
+      "hook": "HOWEVER予告",
+      "title": "泥と、白いドレスが混ざっていた夏——1997年",
+      "bg": "summer-poster-night.png",
+      "audience": "40代／GLAY・フェス世代",
+      "song": "HOWEVER",
+      "verified": false,
+      "fixes": [
+        [
+          "玉ぼっち",
+          "たまごっち"
+        ],
+        [
+          "千弁若山",
+          "智弁和歌山"
+        ],
+        [
+          "手もとに",
+          "手元に"
+        ]
+      ]
+    },
+    {
+      "id": 14,
+      "cell": "1985-spring",
+      "seg": 3,
+      "start": "今夜は、あの春を少しだけ歩きました",
+      "end": "それぞれの1985年があるはずです",
+      "hook": "卒業予告",
+      "title": "それぞれの1985年があった春",
+      "bg": "stadium-night.png",
+      "audience": "55〜65代／昭和後期",
+      "song": "卒業",
+      "verified": false,
+      "fixes": [
+        [
+          "三つの子",
+          "三つの弧"
+        ],
+        [
+          "調子の醤油蔵",
+          "銚子の醤油蔵"
+        ],
+        [
+          "開放感",
+          "解放感"
+        ]
+      ]
     }
   ]
 }

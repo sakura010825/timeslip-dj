@@ -15,7 +15,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { parseArgs, slugifyHook, ensureDir, readJson, fmtSec, OUT_ROOT } from './shorts/util.mjs';
+import { parseArgs, slugifyHook, ensureDir, readJson, fmtSec, normalizeForCompare, OUT_ROOT } from './shorts/util.mjs';
 import { locateSegAudio, getWords, resolveWindow } from './shorts/resolve.mjs';
 
 const args = parseArgs(process.argv.slice(2));
@@ -60,6 +60,8 @@ function buildJobsFromManifest(manifestPath) {
       hook: s.hook ?? 'clip', title: s.title ?? '', bg: s.bg ?? null,
       subsFile: s.subsFile ?? null, audience: s.audience ?? '',
       song: s.song ?? null, fixes: s.fixes ?? null,
+      // 型Bは曲名の直前で切るため、本ごとに余白の微調整が要る（既定は song 指定時 0）
+      padStart: s.padStart ?? null, padEnd: s.padEnd ?? null,
       djName: args['no-dj'] ? null : (args.dj ? String(args.dj) : manifestDj),
       utm: m.utm,
     }));
@@ -77,12 +79,19 @@ async function processJob(job) {
     ...(data.segments ?? []).map((s) => s.end),
   );
   const audioDur = Math.max(durationSec ?? 0, whisperEnd);
+  // 型B（曲予告クリフハンガー）は既定の余白 0.6s が命取りになる。
+  // 曲紹介の直前で切るので、0.6s 余分に鳴らすと**次の一言＝曲名そのもの**が
+  // 音にも字幕にも漏れ、「流れないこと」というフック自体が消える（2026-07-22 実測で
+  // #13 が「グレーでハウエバーです」を巻き込んでいた）。よって song 指定時の既定は 0。
+  // マニフェスト側の padStart/padEnd で個別上書きもできる。
+  const padStart = job.padStart != null ? Number(job.padStart) : PAD_START;
+  const padEnd = job.padEnd != null ? Number(job.padEnd) : (job.song ? 0 : PAD_END);
   const win = resolveWindow({
     data,
     startAnchor: job.start,
     endAnchor: job.end,
-    padStart: PAD_START,
-    padEnd: PAD_END,
+    padStart,
+    padEnd,
     segDurationSec: audioDur,
   });
 
@@ -105,6 +114,31 @@ async function processJob(job) {
   }
   if (win.dur < 8) {
     console.warn(`   ⚠ 尺 ${fmtSec(win.dur)} が短い（8s未満）。意図通りか確認を`);
+  }
+
+  // 型Bのクリフハンガー検査。曲名が漏れると広告として死ぬのに、映像は正常に焼き上がる＝
+  // **静かに壊れる**種類の事故なので機械で止める（背景が見つからない警告を読み飛ばした
+  // 2026-07-17 の教訓と同じ型）。窓に入る最後の転写セグメントが end 句で終わっていなければ、
+  // その先（＝曲名）を巻き込んでいる。
+  if (job.song) {
+    const shown = (data.segments ?? []).filter((s) => s.end > win.t0 && s.start < win.t1);
+    const last = shown[shown.length - 1];
+    if (last) {
+      const nLast = normalizeForCompare(last.text);
+      // 比べる相手は指定句ではなく **実際に一致した転写テキスト**（win.endText）。
+      // 指定句は原稿の綴りで書くので、Whisperが別表記に転写していると（例: ユーミン→雄鳴）
+      // 正しい窓でも一致せず誤検知になる。
+      const nAnchor = normalizeForCompare(win.endText || job.end);
+      const probe = nAnchor.slice(-8);
+      const at = probe ? nLast.lastIndexOf(probe) : -1;
+      const trailing = at >= 0 ? nLast.length - (at + probe.length) : Infinity;
+      if (trailing > 6) {
+        console.error(`   ✗ 型B: 窓が end 句の先まで含んでいる＝曲名が漏れる恐れ`);
+        console.error(`      最後の字幕: "${last.text.trim()}"`);
+        console.error(`      → end 句を曲名の直前の表現にするか、padEnd をマイナスにしてください`);
+        return { ok: false, job };
+      }
+    }
   }
 
   if (DRY) return { ok: true, job, win, dry: true };

@@ -52,18 +52,34 @@ function tokenizeJa(s) {
 /** ⚠️ libassは空白の無い日本語を自動折返ししない（WrapStyle:0は空白でしか折らない）。
  *  2026-07-16にアンカー側で判明し、ショートも同じ穴だった（読点の無い長文が画面外へ溢れる）。
  *  文字数で折るが、西暦や英単語は割らず、行頭に来てはいけない約物は前行に残す。 */
-function wrapJa(s, max = MAX_LINE) {
-  const t = (s ?? '').trim();
-  if (!t || dispLen(t) <= max) return t;
-  const CLOSER = /^[、。，．！？!?」』）\]｝・ー…ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮ]$/;
+const CLOSER = /^[、。，．！？!?」』）\]｝・ー…ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮ]$/;
+
+/** トークン列を幅 max で貪欲に折る。行頭に来てはいけない約物は前行に残す。 */
+function wrapTokens(toks, max) {
   const lines = [];
   let cur = '';
-  for (const tok of tokenizeJa(t)) {
+  for (const tok of toks) {
     if (cur && dispLen(cur) + dispLen(tok) > max && !CLOSER.test(tok)) { lines.push(cur); cur = ''; }
     cur += tok;
   }
   if (cur) lines.push(cur);
-  return lines.join('\\N');
+  return lines;
+}
+
+function wrapJa(s, max = MAX_LINE) {
+  const t = (s ?? '').trim();
+  if (!t || dispLen(t) <= max) return t;
+  const toks = tokenizeJa(t);
+  const greedy = wrapTokens(toks, max);
+  // 貪欲に詰めると最終行が「た。」だけ、のような落ち穂になる（2026-07-22 実測:
+  // 「今夜はあの春を少しだけ歩きまし／た。」「…逆転へ向かっていっ／た」）。
+  // 読めるが素人臭く見えるので、行数を増やさずに幅を詰めて行長を揃え直す。
+  const n = greedy.length;
+  if (n >= 2 && dispLen(greedy[n - 1]) < max * 0.4) {
+    const balanced = wrapTokens(toks, Math.ceil(dispLen(t) / n));
+    if (balanced.length === n) return balanced.join('\\N');
+  }
+  return greedy.join('\\N');
 }
 
 /** フレーズ配列を1つの表示テキストに。長い場合はフレーズ境界（中央寄り・句読点優先）で改行し、
