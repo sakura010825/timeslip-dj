@@ -62,6 +62,10 @@ function buildJobsFromManifest(manifestPath) {
       song: s.song ?? null, fixes: s.fixes ?? null,
       // 型C（走馬灯）: 複数断片の宣言と、問いで閉じるエンドカードの切替
       clips: s.clips ?? null, walkingFlame: !!s.walkingFlame,
+      // バッジ2行目（常設の題材表示）。hook は型Bだと「愛は勝つ予告」のように**曲名を含む**ので、
+      // そのまま出すとクリフハンガーが冒頭から割れる（2026-07-22 フレーム確認で捕捉）。
+      // 型Bは topic を明示した本だけ2行目を出す。
+      topic: s.topic ?? (s.song ? null : s.hook),
       // 型Bは曲名の直前で切るため、本ごとに余白の微調整が要る（既定は song 指定時 0）
       padStart: s.padStart ?? null, padEnd: s.padEnd ?? null,
       djName: args['no-dj'] ? null : (args.dj ? String(args.dj) : manifestDj),
@@ -131,6 +135,14 @@ async function processJob(job) {
   // 2026-07-17 の教訓と同じ型）。**最後の断片**の末尾が end 句で終わっていなければ、
   // その先（＝曲名）を巻き込んでいる。
   if (job.song) {
+    // バッジの題材表示にも曲名を出さない。hook は「愛は勝つ予告」のように曲名を含むので、
+    // 型Bでこれを常設表示すると**冒頭からオチが割れる**（画面は正常に焼き上がるので気づけない）。
+    const norm = (s) => normalizeForCompare(String(s ?? ''));
+    if (job.topic && norm(job.topic).includes(norm(job.song))) {
+      console.error(`   ✗ 型B: バッジの題材「${job.topic}」に曲名「${job.song}」が入っている＝冒頭でネタバレ`);
+      console.error(`      → マニフェストの topic を曲名を含まない表現にしてください`);
+      return { ok: false, job };
+    }
     const tail = clips[clips.length - 1];
     const shown = (tail.data.segments ?? []).filter((s) => s.end > tail.win.t0 && s.start < tail.win.t1);
     const last = shown[shown.length - 1];
@@ -174,13 +186,15 @@ async function processJob(job) {
 
   // 型B（曲予告）はカードが主役なので少し長めに見せる。
   // 型C（走馬灯）は最後が**問い**なので、読み切って考える間を置く。
-  const endcardSec = job.song ? 2.4 : job.walkingFlame ? 3.0 : 1.8;
+  // URLを読み切る時間が要る（hide試写: 行き先を持ち帰れないと導線が成立しない）
+  const endcardSec = job.song ? 2.8 : job.walkingFlame ? 3.2 : 2.4;
   buildAss({
     assPath,
     clips: clips.map((c) => ({ segments: c.data.segments, win: c.win })),
     year: job.cell.split('-')[0],
     season: job.cell.split('-')[1],
     title: job.title,
+    topic: job.topic,
     subsOverride,
     endcardSec,
     djName: job.djName,

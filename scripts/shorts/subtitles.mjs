@@ -167,7 +167,7 @@ function applyFixes(text, fixes) {
  * clips = [{ segments, win }, ...]。型A/型Bは1要素、型C（走馬灯）は複数。
  * 断片ごとに時刻を先頭からの通算へ寄せて1本の字幕トラックにする。
  */
-export function buildAss({ assPath, clips, year, season, title, subsOverride, endcardSec, djName, songCard, walkingFlame, fixes }) {
+export function buildAss({ assPath, clips, year, season, title, topic, subsOverride, endcardSec, djName, songCard, walkingFlame, fixes }) {
   const dur = clips.reduce((s, c) => s + c.win.dur, 0);
   const total = dur + endcardSec;
   const seasonJP = SEASON_JP[season] ?? '';
@@ -197,7 +197,13 @@ export function buildAss({ assPath, clips, year, season, title, subsOverride, en
   ];
 
   const events = [];
-  events.push(`Dialogue: 0,${assTime(0)},${assTime(total)},Badge,,0,0,0,,${assEscape(`${year}・${seasonJP}`)}`);
+  // 左上バッジ＝**いつ見ても「何年のどの季節の何の話か」が分かる**ための常設表示。
+  // 冒頭3.6秒のタイトルだけだと途中から見た人に何も伝わらない（hide試写 2026-07-22）。
+  // 1行目=年と季節（フル表記）／2行目=題材。2行目は控えめにして声の邪魔をしない。
+  const badge = topic
+    ? `${assEscape(`${year}年・${seasonJP}`)}\\N{\\fs30\\c&H0098BCCC&}${assEscape(topic)}`
+    : assEscape(`${year}年・${seasonJP}`);
+  events.push(`Dialogue: 0,${assTime(0)},${assTime(total)},Badge,,0,0,0,,${badge}`);
   for (const e of subEvents) {
     events.push(`Dialogue: 0,${assTime(e.start)},${assTime(e.end)},Sub,,0,0,0,,${e.text}`);
   }
@@ -207,11 +213,15 @@ export function buildAss({ assPath, clips, year, season, title, subsOverride, en
   // 曲名が長いと1行に収まらない（Endcard fs66・使用幅900px）→ wrapJaで折る
   // 型C（走馬灯・複数断片）: 年という額縁で閉じ、**問い**で個人化へ渡す（Playbook §8.3）。
   // 「あなたの◯は、何年ですか」＝ 最初のひと回（年×季節を編む）への導火線。
+  // ⚠️ Shortsは説明欄・コメントのURLがクリック不能（MARKETING_FUNNEL §3.1）。
+  // つまり**画面にドメインを文字で出すことが、唯一その場で渡せる宛先**。
+  // 「ReDialで。」だけでは、良いと思った人が行き先を持ち帰れない（hide試写 2026-07-22）。
+  const SITE = 'redial.jp';
   const endcard = songCard
-    ? `${wrapJa(`♪ ここで「${assEscape(songCard)}」が流れます`, 19)}\\N{\\fs40\\c&H00C8C8C8&}音楽つきのフル版は、ReDialで。`
+    ? `${wrapJa(`♪ ここで「${assEscape(songCard)}」が流れます`, 19)}\\N{\\fs40\\c&H00C8C8C8&}音楽つきのフル版（無料）は ${SITE}`
     : walkingFlame
-      ? `${wrapJa(`ぜんぶ、${year}年の${seasonJP}です。`, 19)}\\N{\\fs40\\c&H00C8C8C8&}あなたの${seasonJP}は、何年ですか。 ——ReDial`
-      : `♪ この続きに、あの頃の曲が流れます\\N{\\fs40\\c&H00C8C8C8&}ReDial ——あなたの季節に、もう一度。`;
+      ? `${wrapJa(`ぜんぶ、${year}年の${seasonJP}です。`, 19)}\\N{\\fs40\\c&H00C8C8C8&}あなたの${seasonJP}は、何年ですか。 —— ${SITE}`
+      : `♪ この続きに、あの頃の曲が流れます\\N{\\fs40\\c&H00C8C8C8&}音楽つきのフル版（無料）は ${SITE}`;
   events.push(`Dialogue: 0,${assTime(dur)},${assTime(total)},Endcard,,0,0,0,,${endcard}`);
   if (title) {
     // 冒頭に「何の話か」を平易に提示＋シンヤ名乗りで「これは深夜DJラジオ」という正体を毎回運ぶ。
