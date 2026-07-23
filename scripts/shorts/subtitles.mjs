@@ -71,6 +71,24 @@ function wrapJa(s, max = MAX_LINE) {
   if (!t || dispLen(t) <= max) return t;
   const toks = tokenizeJa(t);
   const greedy = wrapTokens(toks, max);
+
+  // 2行で収まるなら、**句読点の直後**で割るのが最も自然。文字数だけで割ると
+  // 「数字で気持／ちを伝えていた」のように語の途中で切れて素人臭くなる（2026-07-22 実測）。
+  // 両行が max に収まる候補のうち、行長が最も揃うものを選ぶ。
+  if (greedy.length === 2) {
+    let best = null;
+    for (let i = 0; i < t.length - 1; i++) {
+      if (!/[、。]/.test(t[i])) continue;
+      // 「生きろ。」の 。 のように、直後が閉じ括弧なら割らない（」だけが次行頭に落ちる）
+      if (/^[」』）\]｝】〉》]/.test(t[i + 1] ?? '')) continue;
+      const a = t.slice(0, i + 1);
+      const b = t.slice(i + 1);
+      if (!b || dispLen(a) > max || dispLen(b) > max) continue;
+      const cost = Math.abs(dispLen(a) - dispLen(b));
+      if (!best || cost < best.cost) best = { a, b, cost };
+    }
+    if (best) return [best.a, best.b].join('\\N');
+  }
   // 貪欲に詰めると最終行が「た。」だけ、のような落ち穂になる（2026-07-22 実測:
   // 「今夜はあの春を少しだけ歩きまし／た。」「…逆転へ向かっていっ／た」）。
   // 読めるが素人臭く見えるので、行数を増やさずに幅を詰めて行長を揃え直す。
