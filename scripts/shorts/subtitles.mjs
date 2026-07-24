@@ -126,14 +126,28 @@ function renderLine(phrases) {
 }
 
 /** Whisper segments → 字幕イベント（クリップ相対時刻）。events = [{start,end,text}] */
-function segmentsToEvents(segments, t0, t1) {
+function segmentsToEvents(segments, t0, t1, words, fixes) {
   const dur = t1 - t0;
   const base = [];
   for (const seg of segments ?? []) {
     if (seg.end <= t0 + 0.1 || seg.start >= t1 - 0.1) continue;
     const s = Math.max(0, seg.start - t0);
     const e = Math.min(dur, seg.end - t0);
-    const phrases = toPhrases(seg.text);
+    // ⚠️ 窓の端にまたがるセグメントは、**音声に無い語まで表示してしまう**（hide試写 2026-07-24）。
+    //   表示時刻だけ窓内に詰めてもテキストは全文のままなので、
+    //   #6=「大阪の春の空気が…」28字が1.1秒で点滅（物理的に読めない）、
+    //   #9=話していない「9月24日」が冒頭に出る、が起きていた。
+    //   単語時刻があるときは、窓内で実際に鳴っている語だけに刈り込む。
+    let text = seg.text;
+    if ((seg.start < t0 - 0.05 || seg.end > t1 + 0.05) && words?.length) {
+      const lo = Math.max(seg.start, t0) - 0.05;
+      const hi = Math.min(seg.end, t1) + 0.05;
+      const inWin = words.filter((w) => w.start >= lo && w.end <= hi);
+      // 刈り込むと空になる場合（単語時刻が薄い等）は元の全文に戻す＝出さないより出す
+      const joined = applyFixes(inWin.map((w) => w.word).join(''), fixes);
+      if (joined.trim()) text = joined;
+    }
+    const phrases = toPhrases(text);
     if (!phrases.length) continue;
     base.push({ start: s, end: e, phrases });
   }
@@ -200,7 +214,7 @@ export function buildAss({ assPath, clips, year, season, title, topic, subsOverr
     let offset = 0;
     for (const c of clips) {
       const fixed = (c.segments ?? []).map((s) => ({ ...s, text: applyFixes(s.text, fixes) }));
-      for (const e of segmentsToEvents(fixed, c.win.t0, c.win.t1)) {
+      for (const e of segmentsToEvents(fixed, c.win.t0, c.win.t1, c.words, fixes)) {
         subEvents.push({ ...e, start: e.start + offset, end: e.end + offset });
       }
       offset += c.win.dur;

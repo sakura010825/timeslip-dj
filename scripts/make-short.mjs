@@ -197,7 +197,8 @@ async function processJob(job) {
   const endcardSec = job.song ? 3.4 : job.walkingFlame ? 4.0 : 3.0;
   buildAss({
     assPath,
-    clips: clips.map((c) => ({ segments: c.data.segments, win: c.win })),
+    // words も渡す＝窓の端にまたがるセグメントを「実際に鳴っている語」だけに刈り込むため
+    clips: clips.map((c) => ({ segments: c.data.segments, words: c.data.words, win: c.win })),
     year: job.cell.split('-')[0],
     season: job.cell.split('-')[1],
     title: job.title,
