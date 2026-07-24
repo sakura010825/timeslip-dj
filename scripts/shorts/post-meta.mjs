@@ -42,7 +42,12 @@ export function buildDescription({ cell, title, utm, song, walkingFlame }) {
   return [
     title || `${year}年の、あの季節。`,
     '',
-    `🎧 音楽つきのフルエピソード（無料）は プロフィールのリンクから`,
+    // ⚠️ Shorts では説明欄のURLが押せない。「プロフィールのリンクから」と書いた直後に
+    // 押せないURLを並べると、視聴者は目の前のURLを押そうとして押せず離脱する
+    // （hide試写 2026-07-24 / 投稿された姿の通し確認）。押せないことを先に織り込んで
+    // 視線の順序を直す。URL自体は PC の通常再生では押せるので残す。
+    `🎧 音楽つきのフルエピソード（無料）は、プロフィール欄のリンクから。`,
+    `※ Shorts では下のURLは押せません（コピー用）`,
     buildUrl({ cell, utm, song, walkingFlame }),
     '',
     tags.map((t) => `#${t}`).join(' '),

@@ -192,7 +192,9 @@ async function processJob(job) {
   // 型B（曲予告）はカードが主役なので少し長めに見せる。
   // 型C（走馬灯）は最後が**問い**なので、読み切って考える間を置く。
   // URLを読み切る時間が要る（hide試写: 行き先を持ち帰れないと導線が成立しない）
-  const endcardSec = job.song ? 2.8 : job.walkingFlame ? 3.2 : 2.4;
+  // 2026-07-24: エンドカードが3行（情緒／CTA「左下のアカウントから」／屋号）になったため
+  // 各型 +0.6〜0.8秒。40〜60代が3行を読み切る間を確保する。
+  const endcardSec = job.song ? 3.4 : job.walkingFlame ? 4.0 : 3.0;
   buildAss({
     assPath,
     clips: clips.map((c) => ({ segments: c.data.segments, win: c.win })),

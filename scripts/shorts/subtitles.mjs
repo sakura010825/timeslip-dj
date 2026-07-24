@@ -235,11 +235,20 @@ export function buildAss({ assPath, clips, year, season, title, topic, subsOverr
   // つまり**画面にドメインを文字で出すことが、唯一その場で渡せる宛先**。
   // 「ReDialで。」だけでは、良いと思った人が行き先を持ち帰れない（hide試写 2026-07-22）。
   const SITE = 'redial.jp';
+  // ⚠️ ドメインを文字で出すだけでは弱い（hide試写 2026-07-24）。
+  // 「読めるけど小さくて目立たない／覚えて後で打つ」は行動として重すぎる。
+  // 一方 Shorts で**その場で押せる導線は左下のチャンネル名だけ**で、そこから飛べる
+  // プロフィールの bio リンクは押せる。よってエンドカードの仕事は
+  // 「URLを見せる」ではなく **「左下を押させる」**。ドメインは持ち帰り用の屋号として
+  // 3行目に小さく残す（計測は bio リンク側の utm_medium=bio が担う）。
+  // 背景は本ごとに明るさが違う（Ken Burnsで動きもする）。小さく薄い字は明るい箇所で沈むので、
+  // CTAは白・情緒行に次ぐ大きさ、屋号もfs36まで上げて「読める」を確保する。
+  const CTA = `\\N{\\fs48\\c&H00FFFFFF&}フル版（無料）は 左下のアカウントから\\N{\\fs36\\c&H00D0D0D0&}${SITE}`;
   const endcard = songCard
-    ? `${wrapJa(`♪ ここで「${assEscape(songCard)}」が流れます`, 19)}\\N{\\fs40\\c&H00C8C8C8&}音楽つきのフル版（無料）は ${SITE}`
+    ? `${wrapJa(`♪ ここで「${assEscape(songCard)}」が流れます`, 19)}${CTA}`
     : walkingFlame
-      ? `${wrapJa(`ぜんぶ、${year}年の${seasonJP}です。`, 19)}\\N{\\fs40\\c&H00C8C8C8&}あなたの${seasonJP}は、何年ですか。 —— ${SITE}`
-      : `♪ この続きに、あの頃の曲が流れます\\N{\\fs40\\c&H00C8C8C8&}音楽つきのフル版（無料）は ${SITE}`;
+      ? `${wrapJa(`ぜんぶ、${year}年の${seasonJP}です。`, 19)}\\N{\\fs40\\c&H00C8C8C8&}あなたの${seasonJP}は、何年ですか。${CTA}`
+      : `♪ この続きに、あの頃の曲が流れます${CTA}`;
   events.push(`Dialogue: 0,${assTime(dur)},${assTime(total)},Endcard,,0,0,0,,${endcard}`);
   if (title) {
     // 冒頭に「何の話か」を平易に提示＋シンヤ名乗りで「これは深夜DJラジオ」という正体を毎回運ぶ。

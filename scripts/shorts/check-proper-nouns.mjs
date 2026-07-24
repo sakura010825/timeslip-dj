@@ -48,7 +48,25 @@ export const WRONG = {
   三つの子: '三つの弧',
   神戸の町: '神戸の街',
   鼻の下: '花の下',
+  // 日付（台本は「九月二十四日」＝正。Whisperが二十を十二に取り違えた）
+  '9月12日4日': '9月24日',
 };
+
+/**
+ * 構造的にありえない日付表記（2026-07-24）。
+ *
+ * なぜ辞書と別に要るか:
+ *   WRONG は「一度見た誤り」しか捕まえられない。ところがWhisperの数字崩れは毎回違う形で出る
+ *   （#9「九月二十四日」→「9月12日4日」）。人名と違って**日付は形が決まっている**ので、
+ *   表記そのものではなく「形の破れ」で捕まえれば、初見の崩れ方でも止められる。
+ *   日付はエピソードの事実そのもの＝間違えると当事者世代の信頼を失う（シドニー時差の件と同じ筋）。
+ */
+const IMPOSSIBLE = [
+  { re: /\d+月\d+日\d+日/, why: '日が二重（◯月◯日◯日）' },
+  { re: /\d+日\d+日/, why: '日が二重（◯日◯日）' },
+  { re: /\d+月\d+月/, why: '月が二重（◯月◯月）' },
+  { re: /\d+年\d+年/, why: '年が二重（◯年◯年）' },
+];
 
 const dir = path.resolve(OUT_ROOT);
 const files = fs.readdirSync(dir).filter((f) => f.startsWith('.') && f.endsWith('.ass'));
@@ -57,12 +75,24 @@ let bad = 0;
 for (const f of files) {
   const text = fs.readFileSync(path.join(dir, f), 'utf8');
   const hits = Object.keys(WRONG).filter((w) => text.includes(w));
-  if (hits.length) {
-    bad += hits.length;
+  // 形の検査は表示行ごとに見る（\N をまたぐ「…24日\N10月…」を誤検出しないため）
+  const broken = [];
+  for (const line of text.split(/\r?\n/)) {
+    if (!line.startsWith('Dialogue:')) continue;
+    for (const seg of line.split(',').slice(9).join(',').split('\\N')) {
+      const clean = seg.replace(/\{[^}]*\}/g, '');
+      // 1箇所の崩れが複数パターンに当たる（◯月◯日◯日 は ◯日◯日 でもある）ので最初の1件だけ報告
+      const p = IMPOSSIBLE.find((x) => x.re.test(clean));
+      if (p) broken.push({ why: p.why, clean });
+    }
+  }
+  if (hits.length || broken.length) {
+    bad += hits.length + broken.length;
     console.log(`✗ ${f.slice(1)}`);
     for (const h of hits) console.log(`    「${h}」→「${WRONG[h]}」（manifest の fixes に足して焼き直す）`);
+    for (const b of broken) console.log(`    日付の形が壊れています（${b.why}）: ${b.clean}`);
   }
 }
 
-console.log(`\n検査 ${files.length}本 / 既知の誤表記 ${bad}件` + (bad ? '' : '  OK'));
+console.log(`\n検査 ${files.length}本 / 誤り ${bad}件` + (bad ? '' : '  OK'));
 if (bad) process.exitCode = 1;
