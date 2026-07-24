@@ -226,6 +226,11 @@ export function buildAss({ assPath, clips, year, season, title, topic, subsOverr
     'Style: Sub,Noto Sans JP,56,&H00FFFFFF,&H000000FF,&H00202020,&H80000000,1,0,0,0,100,100,0,0,1,3.4,2,2,72,72,430,1',
     'Style: Badge,Noto Serif JP,46,&H00B0D9E8,&H00000000,&H00101010,&H00000000,0,0,0,0,100,100,2,0,1,2,1,7,54,54,64,1',
     'Style: Endcard,Noto Serif JP,66,&H00D8ECF5,&H00000000,&H00101010,&H90000000,0,0,0,0,100,100,0,0,1,3,3,5,90,90,0,1',
+    // 常時CTA＝**ショートはループする**のに終端エンドカードは一瞬で頭に戻る（hide試写 2026-07-24）。
+    // 終端頼みだと「フル版は左下から」の存在に気づけない。動画中ずっと出す常設の宛先。
+    // 置き場所: 上部中央（下部はYouTubeのUI＝チャンネル名/タイトル/シークバーと重なる）。バッジ(top-left)より下。
+    // 見た目: 半透明の白＋濃い縁取りで、明暗どちらの背景でも沈まず、声の没入も壊さない控えめさ。
+    'Style: Cta,Noto Serif JP,40,&H1AF4F4F4,&H00000000,&H80000000,&HA0000000,0,0,0,0,100,100,0,0,1,2.6,1,8,60,60,210,1',
   ];
 
   const events = [];
@@ -236,6 +241,8 @@ export function buildAss({ assPath, clips, year, season, title, topic, subsOverr
     ? `${assEscape(`${year}年・${seasonJP}`)}\\N{\\fs30\\c&H0098BCCC&}${assEscape(topic)}`
     : assEscape(`${year}年・${seasonJP}`);
   events.push(`Dialogue: 0,${assTime(0)},${assTime(total)},Badge,,0,0,0,,${badge}`);
+  // 常時CTA（トーク中ずっと・エンドカード区間は大きいCTAに譲る）。ループしても常に宛先が画面にある。
+  events.push(`Dialogue: 0,${assTime(0)},${assTime(dur)},Cta,,0,0,0,,♪ フル版（無料）は 左下のアカウントから`);
   for (const e of subEvents) {
     events.push(`Dialogue: 0,${assTime(e.start)},${assTime(e.end)},Sub,,0,0,0,,${e.text}`);
   }
