@@ -20,6 +20,10 @@ const STYLE = {
   Sub: { fs: 56, ml: 72, mr: 72 },
   Badge: { fs: 46, ml: 54, mr: 54 },
   Endcard: { fs: 66, ml: 90, mr: 90 },
+  // Cta を入れていなかったため、常時CTAだけ幅検査が素通りしていた（2026-07-27 追加）。
+  // 既定の Sub(fs56/使用幅936) にフォールバックしていたので、実際の Cta(fs40/使用幅960)
+  // より厳しい判定にはなっていたが、スタイルを変えた瞬間に検査が嘘をつく状態だった。
+  Cta: { fs: 40, ml: 60, mr: 60 },
 };
 
 const dir = process.argv[2] ?? path.join('output', 'shorts');

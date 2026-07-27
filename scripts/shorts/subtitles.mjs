@@ -224,13 +224,21 @@ export function buildAss({ assPath, clips, year, season, title, topic, subsOverr
   const styles = [
     // Name,Fontname,Fontsize,Primary,Secondary,Outline,Back,Bold,Italic,U,S,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,ML,MR,MV,Encoding
     'Style: Sub,Noto Sans JP,56,&H00FFFFFF,&H000000FF,&H00202020,&H80000000,1,0,0,0,100,100,0,0,1,3.4,2,2,72,72,430,1',
-    'Style: Badge,Noto Serif JP,46,&H00B0D9E8,&H00000000,&H00101010,&H00000000,0,0,0,0,100,100,2,0,1,2,1,7,54,54,64,1',
+    // ⚠️ MarginV は 64 → 200（2026-07-27・hide実機スクショから実測）。
+    // YouTube自身のUI（戻る矢印・「ショート」ラベル・検索・その下のチップ行）が
+    // **動画の上端から y=169 までを覆う**ため、64 ではバッジが完全に下敷きになっていた。
+    // 実測: 画面900x1898に1080x1920を幅フィット→表示高1600・上余白149・scale 0.833。
+    // チップ行の下端 画面y≈290 → 動画y=169。安全側で 200 から始める。
+    'Style: Badge,Noto Serif JP,46,&H00B0D9E8,&H00000000,&H00101010,&H00000000,0,0,0,0,100,100,2,0,1,2,1,7,54,54,200,1',
     'Style: Endcard,Noto Serif JP,66,&H00D8ECF5,&H00000000,&H00101010,&H90000000,0,0,0,0,100,100,0,0,1,3,3,5,90,90,0,1',
     // 常時CTA＝**ショートはループする**のに終端エンドカードは一瞬で頭に戻る（hide試写 2026-07-24）。
-    // 終端頼みだと「フル版は左下から」の存在に気づけない。動画中ずっと出す常設の宛先。
-    // 置き場所: 上部中央（下部はYouTubeのUI＝チャンネル名/タイトル/シークバーと重なる）。バッジ(top-left)より下。
+    // 終端頼みだと宛先の存在に気づけない。動画中ずっと出す常設の宛先。
+    // 置き場所: 上部中央（下部はYouTubeのUI＝チャンネル名/タイトル/関連動画リンク/シークバーと重なる）。
+    // MarginV は 210 → 300（2026-07-27）。YouTubeのUIが動画 y=169 までを覆うので 210 では
+    // チップ行との間合いが41pxしかなく、機種の縦横比によっては噛む。バッジ(y=200から2行)とも
+    // 縦をずらして視覚的に分離する（横は バッジ x54-219 / CTA x320-760 で元々重ならない）。
     // 見た目: 半透明の白＋濃い縁取りで、明暗どちらの背景でも沈まず、声の没入も壊さない控えめさ。
-    'Style: Cta,Noto Serif JP,40,&H1AF4F4F4,&H00000000,&H80000000,&HA0000000,0,0,0,0,100,100,0,0,1,2.6,1,8,60,60,210,1',
+    'Style: Cta,Noto Serif JP,40,&H1AF4F4F4,&H00000000,&H80000000,&HA0000000,0,0,0,0,100,100,0,0,1,2.6,1,8,60,60,300,1',
   ];
 
   const events = [];
@@ -242,7 +250,10 @@ export function buildAss({ assPath, clips, year, season, title, topic, subsOverr
     : assEscape(`${year}年・${seasonJP}`);
   events.push(`Dialogue: 0,${assTime(0)},${assTime(total)},Badge,,0,0,0,,${badge}`);
   // 常時CTA（トーク中ずっと・エンドカード区間は大きいCTAに譲る）。ループしても常に宛先が画面にある。
-  events.push(`Dialogue: 0,${assTime(0)},${assTime(dur)},Cta,,0,0,0,,♪ フル版（無料）は 左下のアカウントから`);
+  // 宛先は「左下のアカウント」→「下の▶」に変更（2026-07-27）。上級者向け機能が解錠され、
+  // **関連動画リンク**（ショートのタイトルの下に出る、▶アイコン付きで長尺へ1タップの帯）が
+  // 使えるようになったため。プロフィール経由の3タップより圧倒的に近い。
+  events.push(`Dialogue: 0,${assTime(0)},${assTime(dur)},Cta,,0,0,0,,♪ フル版（無料）は 下の ▶ から`);
   for (const e of subEvents) {
     events.push(`Dialogue: 0,${assTime(e.start)},${assTime(e.end)},Sub,,0,0,0,,${e.text}`);
   }
@@ -258,13 +269,16 @@ export function buildAss({ assPath, clips, year, season, title, topic, subsOverr
   const SITE = 'redial.jp';
   // ⚠️ ドメインを文字で出すだけでは弱い（hide試写 2026-07-24）。
   // 「読めるけど小さくて目立たない／覚えて後で打つ」は行動として重すぎる。
-  // 一方 Shorts で**その場で押せる導線は左下のチャンネル名だけ**で、そこから飛べる
-  // プロフィールの bio リンクは押せる。よってエンドカードの仕事は
-  // 「URLを見せる」ではなく **「左下を押させる」**。ドメインは持ち帰り用の屋号として
-  // 3行目に小さく残す（計測は bio リンク側の utm_medium=bio が担う）。
+  // **2026-07-27 に押せる導線が増えた**: 上級者向け機能の解錠で「関連動画リンク」が
+  // 使えるようになり、ショートのタイトル直下に ▶ 付きで長尺への1タップ帯が出る。
+  // その長尺の説明欄リンクは（同じく解錠され）踏める。＝ 2タップで redial.jp に着く。
+  // 旧「左下のアカウント」経由（プロフィール→bioリンク）より近いので、そちらを主動線にする。
+  // ドメインは持ち帰り用の屋号として残し、あわせて**チャンネル登録**を添える——
+  // その場で飛ばなかった大多数を、次の季節まで手元に置いておくため
+  // （実測: 1,276再生に対し登録者1名＝一度も頼んでいなかった）。
   // 背景は本ごとに明るさが違う（Ken Burnsで動きもする）。小さく薄い字は明るい箇所で沈むので、
   // CTAは白・情緒行に次ぐ大きさ、屋号もfs36まで上げて「読める」を確保する。
-  const CTA = `\\N{\\fs48\\c&H00FFFFFF&}フル版（無料）は 左下のアカウントから\\N{\\fs36\\c&H00D0D0D0&}${SITE}`;
+  const CTA = `\\N{\\fs48\\c&H00FFFFFF&}フル版（無料）は 下の ▶ から\\N{\\fs34\\c&H00D0D0D0&}${SITE}　｜　登録すると、次の季節も。`;
   const endcard = songCard
     ? `${wrapJa(`♪ ここで「${assEscape(songCard)}」が流れます`, 19)}${CTA}`
     : walkingFlame
