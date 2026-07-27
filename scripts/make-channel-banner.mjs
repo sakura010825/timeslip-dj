@@ -1,5 +1,5 @@
 /**
- * YouTube チャンネルバナーを作る（2026-07-27）。
+ * YouTube チャンネルバナー / X プロフィールヘッダーを作る（2026-07-27）。
  *
  * なぜ必要か:
  *   2026-07-27 の診断で、YouTube から redial.jp へ出られる経路が
@@ -20,7 +20,8 @@
  *   node scripts/make-channel-banner.mjs             # 3案すべて出力
  *   node scripts/make-channel-banner.mjs --variant b # 1案だけ
  *   node scripts/make-channel-banner.mjs --guide     # セーフエリアの枠線入り（確認用・入稿禁止）
- *   出力: output/channel/banner-{a,b,c}.png
+ *   node scripts/make-channel-banner.mjs --preset x  # Xヘッダー 1500x500
+ *   出力: output/channel/banner-{yt|x}-{a,b,c}.png ＋ 実際に見える範囲の safe-*.png
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -33,13 +34,39 @@ const BG = path.resolve(CWD, 'assets', 'shorts', 'backgrounds', 'radio-booth-nig
 const FONT_SERIF = path.resolve(CWD, 'assets', 'shorts', 'fonts', 'NotoSerifJP-VF.ttf');
 const OUT_DIR = path.resolve(CWD, 'output', 'channel');
 
-const W = 2048;
-const H = 1152;
-// セーフエリア（全デバイスで見える中央の帯）。ここを1pxでも出たらスマホで切れる。
-const SAFE_W = 1235;
-const SAFE_H = 338;
-const SAFE_X = Math.round((W - SAFE_W) / 2); // 406
-const SAFE_Y = Math.round((H - SAFE_H) / 2); // 407
+/**
+ * 出力先ごとの寸法。
+ *
+ * yt = YouTubeチャンネルバナー 2048x1152（16:9）。
+ *   セーフエリア 1235x338 = スマホを含む全デバイスで必ず見える中央の帯。
+ *   ここを1pxでも出た文字はスマホで切れる。
+ *
+ * x  = Xのプロフィールヘッダー 1500x500（3:1）。
+ *   Xにはセーフエリアの公式定義が無いが、**左下にアイコンの丸が重なる**（実測でおよそ
+ *   x 0-290 / y 380-500）ので、そこを避けて中央に置く。端末により左右が切られるため、
+ *   重要な文字は必ず中央寄せにする。
+ */
+const PRESETS = {
+  yt: { w: 2048, h: 1152, safeW: 1235, safeH: 338, zoom: 1.22, pan: 0.62 },
+  x: { w: 1500, h: 500, safeW: 900, safeH: 300, zoom: 1.0, pan: 0.58 },
+};
+
+/* ------- 引数と寸法（下の定数・関数がこれに依存するので先に解決する） ------- */
+const args = parseArgs(process.argv.slice(2));
+const presetName = (typeof args.preset === 'string' ? args.preset : 'yt').toLowerCase();
+if (!PRESETS[presetName]) {
+  console.error(`--preset は ${Object.keys(PRESETS).join(' / ')} のいずれかです。`);
+  process.exit(1);
+}
+const P = PRESETS[presetName];
+const W = P.w;
+const H = P.h;
+const SAFE_W = P.safeW;
+const SAFE_H = P.safeH;
+const SAFE_X = Math.round((W - SAFE_W) / 2);
+const SAFE_Y = Math.round((H - SAFE_H) / 2);
+// 文字サイズは 2048幅（yt）を基準に決めてあるので、出力幅の比で縮める。
+const FS = W / 2048;
 
 // Noto JP の実測字送り（scripts/shorts/check-overflow.mjs と同じ値）。
 const EM_RATIO = 0.689;
@@ -66,7 +93,7 @@ const VARIANTS = {
   ],
 };
 
-const GAP = 26; // 行間（行の下端から次の行の上端まで）
+const GAP = Math.round(26 * FS); // 行間（行の下端から次の行の上端まで・出力幅に比例）
 
 /** ffmpeg のフィルタ引数に渡すパス（ドライブレターのコロンを逃がす）。 */
 function ffPath(p) {
@@ -100,12 +127,23 @@ async function buildBase(guide, zoom, pan) {
   ${guide ? `<rect x="${SAFE_X}" y="${SAFE_Y}" width="${SAFE_W}" height="${SAFE_H}" fill="none" stroke="#FF3B30" stroke-width="3" stroke-dasharray="14 10"/>` : ''}
 </svg>`;
 
-  // 素材は 1920x1080 の同比率なので、等倍なら切り取らずに収まる。
-  // ただし全デバイスで実際に見えるのは中央の 338px 帯だけで、等倍だとそこにマイクが
-  // 胴体の途中で切れて写り込む（＝正体不明の暗い柱に見える）。少し拡大して上下に振り、
-  // 帯の中に「意味のある画」が来るようにする。zoom=1 なら従来どおり。
-  const zw = Math.round(W * zoom);
-  const zh = Math.round(H * zoom);
+  // 素材の比率を保ったまま出力を覆い、はみ出した分を切る（cover）。
+  // ⚠️ fit:'fill' で W×H に潰してはいけない。yt(16:9)は素材と同比率なので偶然
+  //    問題にならなかったが、x(3:1)では写真が縦に圧縮されて別物になる。
+  // そのうえで縦の位置を pan で選ぶ: 全デバイスで見えるのは中央の帯だけなので、
+  // そこに「意味のある画」（卓のVUメーターとヘッドホン）が来るようにする。
+  // 等倍だと帯にマイクが胴体の途中で切れて写り、正体不明の暗い柱に見える。
+  const meta = await sharp(BG).metadata();
+  const srcAR = meta.width / meta.height;
+  let zw;
+  let zh;
+  if (W / H >= srcAR) {
+    zw = Math.round(W * zoom); // 出力のほうが横長 → 幅を合わせ、縦を切る
+    zh = Math.round(zw / srcAR);
+  } else {
+    zh = Math.round(H * zoom); // 出力のほうが縦長 → 高さを合わせ、横を切る
+    zw = Math.round(zh * srcAR);
+  }
   const maxTop = zh - H;
   const top = Math.max(0, Math.min(maxTop, Math.round(maxTop * pan)));
   const left = Math.round((zw - W) / 2);
@@ -181,16 +219,15 @@ function checkFit(name, lines) {
 }
 
 /* ---------------- main ---------------- */
-const args = parseArgs(process.argv.slice(2));
 const guide = Boolean(args.guide);
 const only = typeof args.variant === 'string' ? args.variant.toLowerCase() : null;
-// 拡大率と縦の振り位置（0=上端寄せ / 0.5=中央 / 1=下端寄せ）。
-// 既定値は目視で選んだ実測値: 等倍(zoom=1)だとマイクが胴体の途中で切れて
-// 「正体不明の暗い柱」になり、pan=0.34 でもまだ頭が残る。0.62 まで下げると
+// 拡大率と縦の振り位置（0=上端寄せ / 0.5=中央 / 1=下端寄せ）。既定はプリセット持ち。
+// yt の既定 zoom=1.22 / pan=0.62 は目視で選んだ実測値: 等倍だとマイクが胴体の途中で
+// 切れて「正体不明の暗い柱」になり、pan=0.34 でもまだ頭が残る。0.62 まで下げると
 // マイクが帯から完全に抜け、卓のVUメーターとヘッドホンが入って
 // 「深夜のラジオブース」が一目で伝わる＋文字の背景が暗くなって可読性も上がる。
-const zoom = Number(args.zoom ?? 1.22);
-const pan = Number(args.pan ?? 0.62);
+const zoom = Number(args.zoom ?? P.zoom);
+const pan = Number(args.pan ?? P.pan);
 const tag = typeof args.tag === 'string' ? `-${args.tag}` : '';
 if (!Number.isFinite(zoom) || zoom < 1 || !Number.isFinite(pan) || pan < 0 || pan > 1) {
   console.error('--zoom は1以上、--pan は0〜1で指定してください。');
@@ -208,13 +245,15 @@ const basePath = path.join(OUT_DIR, '.base.png');
 fs.writeFileSync(basePath, base);
 
 let ok = true;
-for (const [name, lines] of Object.entries(VARIANTS)) {
+for (const [name, rawLines] of Object.entries(VARIANTS)) {
   if (only && name !== only) continue;
+  // 文字サイズは yt(2048幅) 基準の値なので、出力幅の比で縮める。
+  const lines = rawLines.map((l) => ({ ...l, size: Math.round(l.size * FS) }));
   if (!checkFit(name, lines)) {
     ok = false;
     continue;
   }
-  const out = path.join(OUT_DIR, `banner-${name}${tag}${guide ? '-guide' : ''}.png`);
+  const out = path.join(OUT_DIR, `banner-${presetName}-${name}${tag}${guide ? "-guide" : ""}.png`);
   drawText(basePath, out, lines);
   const { size } = fs.statSync(out);
   const meta = await sharp(out).metadata();
@@ -223,7 +262,7 @@ for (const [name, lines] of Object.entries(VARIANTS)) {
   // 実際に全デバイスで見える範囲だけを切り出しておく（目視レビュー用）。
   await sharp(out)
     .extract({ left: SAFE_X, top: SAFE_Y, width: SAFE_W, height: SAFE_H })
-    .toFile(path.join(OUT_DIR, `safe-${name}${tag}.png`));
+    .toFile(path.join(OUT_DIR, `safe-${presetName}-${name}${tag}.png`));
 }
 fs.rmSync(basePath, { force: true });
 if (guide) console.log('\n⚠ --guide の出力は赤枠入りです。確認用なので入稿しないこと。');
