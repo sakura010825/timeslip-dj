@@ -25,7 +25,21 @@ where npm  >nul 2>&1 || (echo [ERROR] npm not found on PATH. & pause & exit /b 1
 if not exist "scripts\generation-worker.mjs" (echo [ERROR] scripts\generation-worker.mjs not found. Run from timeslip-dj root. & pause & exit /b 1)
 if not exist ".env.local" (echo [ERROR] .env.local not found. & pause & exit /b 1)
 
-echo [1/4] Killing orphan process on port %PORT% ...
+echo [1/4] Cleaning up the previous run (windows, workers, port %PORT%) ...
+rem  Kill leftover launcher windows first, THEN their node processes.
+rem  Order matters: the windows auto-restart their child after 5s, so killing the
+rem  node process first just makes the window spawn a new one.
+rem
+rem  Why this exists (measured 2026-07-27): without it, every run of this file ADDS
+rem  a worker instead of replacing one. Three generation-worker processes were alive
+rem  at once (started 07-22, 07-24, 07-27), two of them running old code. They all
+rem  upsert the SAME worker_heartbeat row, so a stuck worker is masked by the others
+rem  and the health signal silently becomes meaningless. Duplicate workers also each
+rem  claim their own job, so several 20-30min generations can run on one PC at once.
+taskkill /F /FI "WINDOWTITLE eq redial-worker*" >nul 2>&1
+taskkill /F /FI "WINDOWTITLE eq redial-dev*" >nul 2>&1
+rem  Any generation-worker that survived the window kill (started by hand, etc).
+powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -like '*generation-worker*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }" >nul 2>&1
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr :%PORT% ^| findstr LISTENING') do (
   echo     kill PID %%a
   taskkill /F /PID %%a >nul 2>&1
