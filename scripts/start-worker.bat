@@ -36,9 +36,18 @@ rem  at once (started 07-22, 07-24, 07-27), two of them running old code. They a
 rem  upsert the SAME worker_heartbeat row, so a stuck worker is masked by the others
 rem  and the health signal silently becomes meaningless. Duplicate workers also each
 rem  claim their own job, so several 20-30min generations can run on one PC at once.
-taskkill /F /FI "WINDOWTITLE eq redial-worker*" >nul 2>&1
-taskkill /F /FI "WINDOWTITLE eq redial-dev*" >nul 2>&1
-rem  Any generation-worker that survived the window kill (started by hand, etc).
+rem  Match the cmd HOSTS by command line, not by window title. Measured 2026-07-27:
+rem  taskkill /FI "WINDOWTITLE eq ..." matched nothing for these console windows, so
+rem  only the node children died - and each surviving :loop respawned a new child 5s
+rem  later. Killing the child alone makes the problem WORSE, not better.
+rem  /T takes the child node down with the host in one shot.
+rem
+rem  NOTE: Name='cmd.exe' AND ProcessId -ne $PID are BOTH required. The command line of
+rem  the powershell below literally contains the string "_run-worker", so a plain
+rem  -like match finds ITSELF and dies with "The process cannot terminate itself"
+rem  before reaching the real targets (hit for real on 2026-07-27).
+powershell -NoProfile -Command "$me=$PID; Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'cmd.exe' -and $_.ProcessId -ne $me -and ($_.CommandLine -like '*_run-worker*' -or $_.CommandLine -like '*_run-dev*') } | ForEach-Object { taskkill /F /T /PID $_.ProcessId }" >nul 2>&1
+rem  Then sweep any generation-worker started outside the launcher (by hand, etc).
 powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -like '*generation-worker*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }" >nul 2>&1
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr :%PORT% ^| findstr LISTENING') do (
   echo     kill PID %%a
