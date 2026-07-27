@@ -60,6 +60,9 @@ output/shorts/
 # 長尺アンカー生成物（T2-6・数十MBのmp4・サムネ・ASS）
 output/anchors/
 
+# チャンネルバナー / Xヘッダーの生成物（make-channel-banner.mjs でいつでも作り直せる）
+output/channel/
+
 # ショート用フォント（システムからコピー・バイナリはコミットしない）
 assets/shorts/fonts/*.ttf
 assets/shorts/fonts/*.ttc
