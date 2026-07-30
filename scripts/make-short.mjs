@@ -60,6 +60,8 @@ function buildJobsFromManifest(manifestPath) {
       hook: s.hook ?? 'clip', title: s.title ?? '', bg: s.bg ?? null,
       subsFile: s.subsFile ?? null, audience: s.audience ?? '',
       song: s.song ?? null, fixes: s.fixes ?? null,
+      // 題材のハッシュタグ（本ごと）。一般語の大タグは効かないので題材固有を持たせる
+      tags: s.tags ?? null,
       // 型C（走馬灯）: 複数断片の宣言と、問いで閉じるエンドカードの切替
       clips: s.clips ?? null, walkingFlame: !!s.walkingFlame,
       // バッジ2行目（常設の題材表示）。hook は型Bだと「愛は勝つ予告」のように**曲名を含む**ので、

@@ -99,12 +99,12 @@ ${j.title}
 
 **説明（YouTube）**（そのまま全部貼る）
 \`\`\`
-${buildDescription({ cell: j.cell, title: j.title, utm: j.utm, song: j.song, walkingFlame: j.walkingFlame })}
+${buildDescription({ cell: j.cell, title: j.title, utm: j.utm, song: j.song, walkingFlame: j.walkingFlame, tags: j.topicTags })}
 \`\`\`
 
 **キャプション（Instagram Reels）**（同じmp4をそのまま使える。UTMだけ instagram に差し替わっている）
 \`\`\`
-${buildDescription({ cell: j.cell, title: j.title, song: j.song, walkingFlame: j.walkingFlame, platform: 'instagram' })}
+${buildDescription({ cell: j.cell, title: j.title, song: j.song, walkingFlame: j.walkingFlame, platform: 'instagram', tags: j.topicTags })}
 \`\`\`
 
 **関連動画**（YouTubeのみ・この動画にリンクする長尺）

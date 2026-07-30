@@ -11,11 +11,9 @@ import path from 'node:path';
 //    美学ラベル（〜レトロ）より具体的な年のほうが届く。タイトルの原則と同じ思想
 //    （`SHORTS_PLAYBOOK` §8.2-c: 当時しか通じない固有名詞・数字を先頭に置く）。
 //    「昭和レトロ」は残してあるが、80年代回を出すときに数字を見て再検討する余地がある。
-const HASHTAGS_BY_DECADE = {
-  198: ['80年代', '昭和レトロ'],
-  199: ['90年代', '懐かしい'],
-  200: ['2000年代', '懐かしい'],
-};
+const DECADE_TAG = { 198: '80年代', 199: '90年代', 200: '2000年代' };
+// 題材タグが無い本だけに足す一般語。**最後の手段**（下のコメント参照）
+const GENERIC_TAG = { 198: '昭和レトロ', 199: '懐かしい', 200: '懐かしい' };
 
 /**
  * 着地URL。`redial/docs/UTM_CONVENTION_2026-07.md` の標準形式に従う。
@@ -37,20 +35,33 @@ export function buildUrl({ cell, utm, song, walkingFlame, platform }) {
   return `https://redial.jp/?utm_source=${u.source}&utm_medium=${u.medium}&utm_campaign=${campaign}`;
 }
 
-export function hashtagsFor(cell) {
+/**
+ * ハッシュタグ。**西暦 → 年代 → 題材** の順。
+ *
+ * ⚠️ **一般語の大タグは効かない**（2026-07-30 Instagram初投稿で実地に確認）。
+ *   `#懐かしい` は投稿184.7万件。フォロワー0の新規アカウントが入れても投稿した瞬間に
+ *   埋もれ、しかも「懐かしい」の対象が無限にあるので探している人がいない。
+ *   一方 `#ストリートファイター2` `#ゲーセン` は母数が小さくても**全員が当事者**。
+ *   → タイトルの原則（SHORTS_PLAYBOOK §8.2-c: 当時しか通じない固有名詞を先頭に）と同じ。
+ *   題材タグがある本には一般語を足さない。
+ *
+ * 題材タグはマニフェストの `tags` に本ごとに書く（音声に無くてもよいが、題材と一致させる）。
+ */
+export function hashtagsFor(cell, topicTags) {
   const year = cell.split('-')[0];
   const decadeKey = year.slice(0, 3);
-  // 西暦を先頭に。同世代は年を見て自分の年齢に換算する＝いちばん具体的な入口になる
-  return [`${year}年`, ...(HASHTAGS_BY_DECADE[decadeKey] ?? ['懐かしい'])];
+  const base = [`${year}年`, DECADE_TAG[decadeKey]].filter(Boolean);
+  const topics = (topicTags ?? []).filter(Boolean);
+  return topics.length ? [...base, ...topics] : [...base, GENERIC_TAG[decadeKey] ?? '懐かしい'];
 }
 
 /**
  * 説明欄本文。**mp4 を焼き直さずに作り直せる**ように writeMeta から切り出してある
  * （URL規約が変わっても make-shorts-upload-kit.mjs の再実行だけで反映できる）。
  */
-export function buildDescription({ cell, title, utm, song, walkingFlame, platform }) {
+export function buildDescription({ cell, title, utm, song, walkingFlame, platform, tags: topicTags }) {
   const year = cell.split('-')[0];
-  const tags = hashtagsFor(cell);
+  const tags = hashtagsFor(cell, topicTags);
   return [
     title || `${year}年の、あの季節。`,
     '',
@@ -71,9 +82,9 @@ export function buildDescription({ cell, title, utm, song, walkingFlame, platfor
 }
 
 export function writeMeta({ job, win, winClips, segmentName, mp3Path, outMp4 }) {
-  const tags = hashtagsFor(job.cell);
+  const tags = hashtagsFor(job.cell, job.tags);
   const utm = job.utm ?? { source: 'youtube', medium: 'short' };
-  const description = buildDescription({ cell: job.cell, title: job.title, utm, song: job.song, walkingFlame: job.walkingFlame });
+  const description = buildDescription({ cell: job.cell, title: job.title, utm, song: job.song, walkingFlame: job.walkingFlame, tags: job.tags });
 
   const meta = {
     id: job.id,
@@ -92,6 +103,9 @@ export function writeMeta({ job, win, winClips, segmentName, mp3Path, outMp4 }) 
     song: job.song ?? null,
     walkingFlame: !!job.walkingFlame,
     hashtags: tags,
+    // 題材タグの原本。キット再生成（make-shorts-upload-kit.mjs）が mp4 を焼き直さずに
+    // 説明文を作り直せるよう、組み立て済みの hashtags とは別に生の指定を残す
+    topicTags: job.tags ?? null,
     note: '説明欄URLはショートではクリック不能。送客は関連動画→長尺アンカー＋プロフィールリンク（MARKETING_FUNNEL §3.1）',
   };
 
