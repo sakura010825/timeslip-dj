@@ -152,8 +152,30 @@ export function resolveWindow({ data, startAnchor, endAnchor, padStart, padEnd, 
     return { ok: false, startScore, endScore, startText: startM?.matchedText ?? '', endText: endM?.matchedText ?? '', t0, t1 };
   }
 
+  const anchorStart = t0;
+  const anchorEnd = t1;
+
   t0 = Math.max(0, t0 - padStart);
   t1 = t1 + padEnd;
+
+  // ⚠️ 余白（padStart/padEnd）は「間」を拾うためのものだが、隣の文が間を置かずに続くと
+  //   隣の語を巻き込む。音声は語の途中で切れ、字幕には喋っていない語が混じる。
+  //   2026-07-30 に公開中の2本で実際に起きていた:
+  //     生きろ。の夏  … 「あの夏のことです」の後 padEnd 0.6 が「そして」に食い込み「…ですそ・し」で終端
+  //     プリクラ財布の一枚 … 「思っています」の後 padEnd 0.6 が「同じ秋」に食い込む
+  //   どちらも check-overflow / check-proper-nouns を素通りした（＝黙って壊れる）。
+  //   隣の語より内側へクランプする。間が空いている本では padStart/padEnd はそのまま効く。
+  if (useWords && words.length) {
+    if (padStart > 0) {
+      const prev = [...words].reverse().find((w) => w.end <= anchorStart + 0.02 && w.start < anchorStart - 0.02);
+      if (prev) t0 = Math.max(t0, Math.min(anchorStart, prev.end));
+    }
+    if (padEnd > 0) {
+      const next = words.find((w) => w.start >= anchorEnd - 0.02 && w.end > anchorEnd + 0.02);
+      if (next) t1 = Math.min(t1, Math.max(anchorEnd, next.start));
+    }
+  }
+
   if (segDurationSec) t1 = Math.min(t1, segDurationSec);
 
   return {

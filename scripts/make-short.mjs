@@ -60,6 +60,8 @@ function buildJobsFromManifest(manifestPath) {
       hook: s.hook ?? 'clip', title: s.title ?? '', bg: s.bg ?? null,
       subsFile: s.subsFile ?? null, audience: s.audience ?? '',
       song: s.song ?? null, fixes: s.fixes ?? null,
+      // 題材のハッシュタグ（本ごと）。一般語の大タグは効かないので題材固有を持たせる
+      tags: s.tags ?? null,
       // 型C（走馬灯）: 複数断片の宣言と、問いで閉じるエンドカードの切替
       clips: s.clips ?? null, walkingFlame: !!s.walkingFlame,
       // バッジ2行目（常設の題材表示）。hook は型Bだと「愛は勝つ予告」のように**曲名を含む**ので、
@@ -217,6 +219,10 @@ async function processJob(job) {
   });
 
   writeMeta({ job, win: { t0: clips[0].win.t0, t1: clips[clips.length - 1].win.t1, dur: totalDur },
+    // 断片ごとの窓も残す。型C（走馬灯）は窓が複数あるため、まとめた window だけでは
+    // start > end という無意味な値になり（1993秋=34.03→22.54）、窓を読む検査が型Cを
+    // 素通りしていた（check-window-tail.mjs, 2026-07-30）。
+    winClips: clips.map((c) => ({ seg: c.seg, start: c.win.t0, end: c.win.t1, dur: c.win.dur })),
     segmentName: parts.map((p) => 'seg' + p.seg).join('+'), mp3Path: clips[0].mp3Path, outMp4 });
   console.log(`   ✓ ${path.relative(process.cwd(), outMp4)}`);
   return { ok: true, job, clips };
