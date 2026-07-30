@@ -97,12 +97,17 @@ ${exists ? mp4 : '⚠️ mp4 が見つかりません（' + mp4 + '）'}
 ${j.title}
 \`\`\`
 
-**説明**（そのまま全部貼る・末尾にプロフィールリンク導線とハッシュタグ入り）
+**説明（YouTube）**（そのまま全部貼る）
 \`\`\`
 ${buildDescription({ cell: j.cell, title: j.title, utm: j.utm, song: j.song, walkingFlame: j.walkingFlame })}
 \`\`\`
 
-**関連動画**（この動画にリンクする長尺）
+**キャプション（Instagram Reels）**（同じmp4をそのまま使える。UTMだけ instagram に差し替わっている）
+\`\`\`
+${buildDescription({ cell: j.cell, title: j.title, song: j.song, walkingFlame: j.walkingFlame, platform: 'instagram' })}
+\`\`\`
+
+**関連動画**（YouTubeのみ・この動画にリンクする長尺）
 \`\`\`
 ${ANCHOR_URL}
 \`\`\`

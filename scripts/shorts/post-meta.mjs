@@ -18,8 +18,12 @@ const HASHTAGS_BY_DECADE = {
  *   トップにしか無く landing イベントが一件も立たなかった（2026-07-22に発覚）。
  *   受け皿はレイアウトへ引き上げ済みだが、着地先は規約どおりトップに揃える
  */
-export function buildUrl({ cell, utm, song, walkingFlame }) {
-  const u = utm ?? { source: 'youtube', medium: 'short' };
+export function buildUrl({ cell, utm, song, walkingFlame, platform }) {
+  // platform を渡すと source を差し替える（同じ縦動画を Instagram Reels にも出すため。
+  // 2026-07-30: 40〜50代の利用率は Instagram 48.5%・TikTok は30代で26.8%と薄いので Instagram を選んだ）。
+  const u = platform
+    ? { source: platform, medium: 'short' }
+    : utm ?? { source: 'youtube', medium: 'short' };
   // campaign にセルだけを入れると、同じセルの型A（題材）と型B（曲予告）が
   // landing 計測で見分けられない。Playbook §8.5 は「類型別に維持率・登録・流入を読む」
   // ことを判定基準にしているので、識別子に型を含める（-a=題材 / -b=曲予告）。
@@ -36,21 +40,23 @@ export function hashtagsFor(cell) {
  * 説明欄本文。**mp4 を焼き直さずに作り直せる**ように writeMeta から切り出してある
  * （URL規約が変わっても make-shorts-upload-kit.mjs の再実行だけで反映できる）。
  */
-export function buildDescription({ cell, title, utm, song, walkingFlame }) {
+export function buildDescription({ cell, title, utm, song, walkingFlame, platform }) {
   const year = cell.split('-')[0];
   const tags = hashtagsFor(cell);
   return [
     title || `${year}年の、あの季節。`,
     '',
-    // ⚠️ Shorts では説明欄のURLが押せない（YouTube仕様・上級者向け機能とは無関係）。
+    // ⚠️ Shorts では説明欄のURLが押せない（YouTube仕様）。Reelsのキャプションも同様。
     // 「◯◯から」と書いた直後に押せないURLを並べると、視聴者は目の前のURLを押そうとして
     // 押せず離脱する（hide試写 2026-07-24）。押せないことを先に織り込んで視線の順序を直す。
-    // 宛先は「プロフィール欄」→「タイトル下の▶」に変更（2026-07-27）。上級者向け機能の
-    // 解錠で**関連動画リンク**が使えるようになり、長尺へ1タップ・その説明欄リンクは
-    // 踏める＝2タップで redial.jp に着く。プロフィール経由（3タップ）より近い。
-    `🎧 音楽つきのフルエピソード（無料）は、タイトル下の ▶ から。`,
-    `※ Shorts では下のURLは押せません（コピー用）`,
-    buildUrl({ cell, utm, song, walkingFlame }),
+    //
+    // 宛先の変遷: 「プロフィール欄」→「タイトル下の▶」(2026-07-27)→**平文ドメイン**(2026-07-30)。
+    // ▶（関連動画リンク）経由は 2,329再生に対し2クリック＝0.09%しか出なかった。加えて
+    // 「タイトル下の▶」はYouTube専用の指示で、同じ動画を Instagram Reels に出せない。
+    // どの面でも成立する文言に戻す（▶ の帯自体はYouTube側に自動で出るので導線は残る）。
+    `🎧 音楽つきのフルエピソード（無料）は redial.jp から。`,
+    `※ ここではURLが押せません（コピー用）`,
+    buildUrl({ cell, utm, song, walkingFlame, platform }),
     '',
     tags.map((t) => `#${t}`).join(' '),
   ].join('\n');
