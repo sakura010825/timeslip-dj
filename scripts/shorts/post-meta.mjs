@@ -5,10 +5,16 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+// ⚠️ **「平成レトロ」を外した**（2026-07-30）。あれはZ世代の語彙で、当時を生きた40〜55代には
+//    当たらない（`feedback_x_follow_vetting_playbook`: 鉱脈の選定で実地に確認済み）。
+//    代わりに**その回の西暦そのもの**を先頭に置く。同世代は「1991年」で自分の年齢に換算するので、
+//    美学ラベル（〜レトロ）より具体的な年のほうが届く。タイトルの原則と同じ思想
+//    （`SHORTS_PLAYBOOK` §8.2-c: 当時しか通じない固有名詞・数字を先頭に置く）。
+//    「昭和レトロ」は残してあるが、80年代回を出すときに数字を見て再検討する余地がある。
 const HASHTAGS_BY_DECADE = {
-  198: ['80年代', '昭和レトロ', '懐かしい'],
-  199: ['1990年代', '平成レトロ', '懐かしい'],
-  200: ['2000年代', 'ゼロ年代', '懐かしい'],
+  198: ['80年代', '昭和レトロ'],
+  199: ['90年代', '懐かしい'],
+  200: ['2000年代', '懐かしい'],
 };
 
 /**
@@ -32,8 +38,10 @@ export function buildUrl({ cell, utm, song, walkingFlame, platform }) {
 }
 
 export function hashtagsFor(cell) {
-  const decadeKey = cell.split('-')[0].slice(0, 3);
-  return HASHTAGS_BY_DECADE[decadeKey] ?? ['懐かしい'];
+  const year = cell.split('-')[0];
+  const decadeKey = year.slice(0, 3);
+  // 西暦を先頭に。同世代は年を見て自分の年齢に換算する＝いちばん具体的な入口になる
+  return [`${year}年`, ...(HASHTAGS_BY_DECADE[decadeKey] ?? ['懐かしい'])];
 }
 
 /**
