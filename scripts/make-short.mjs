@@ -217,6 +217,10 @@ async function processJob(job) {
   });
 
   writeMeta({ job, win: { t0: clips[0].win.t0, t1: clips[clips.length - 1].win.t1, dur: totalDur },
+    // 断片ごとの窓も残す。型C（走馬灯）は窓が複数あるため、まとめた window だけでは
+    // start > end という無意味な値になり（1993秋=34.03→22.54）、窓を読む検査が型Cを
+    // 素通りしていた（check-window-tail.mjs, 2026-07-30）。
+    winClips: clips.map((c) => ({ seg: c.seg, start: c.win.t0, end: c.win.t1, dur: c.win.dur })),
     segmentName: parts.map((p) => 'seg' + p.seg).join('+'), mp3Path: clips[0].mp3Path, outMp4 });
   console.log(`   ✓ ${path.relative(process.cwd(), outMp4)}`);
   return { ok: true, job, clips };

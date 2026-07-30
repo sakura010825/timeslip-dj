@@ -56,7 +56,7 @@ export function buildDescription({ cell, title, utm, song, walkingFlame }) {
   ].join('\n');
 }
 
-export function writeMeta({ job, win, segmentName, mp3Path, outMp4 }) {
+export function writeMeta({ job, win, winClips, segmentName, mp3Path, outMp4 }) {
   const tags = hashtagsFor(job.cell);
   const utm = job.utm ?? { source: 'youtube', medium: 'short' };
   const description = buildDescription({ cell: job.cell, title: job.title, utm, song: job.song, walkingFlame: job.walkingFlame });
@@ -69,6 +69,8 @@ export function writeMeta({ job, win, segmentName, mp3Path, outMp4 }) {
     title: job.title,
     audience: job.audience,
     window: { start: win.t0, end: win.t1, dur: win.dur },
+    // 断片ごとの窓（型A/型Bは1件・型Cは複数）。窓の端が語の途中で切れていないかの検査が読む
+    winClips: winClips ?? null,
     source: { slug: job.cell, segmentName, audio: mp3Path.replace(/\\/g, '/') },
     description,
     utm,
