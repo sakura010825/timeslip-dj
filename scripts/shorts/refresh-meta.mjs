@@ -43,9 +43,11 @@ for (const f of files) {
     utm,
     topicTags: s.tags ?? null,
     hashtags: hashtagsFor(s.cell, s.tags),
+    campaign: s.campaign ?? null,
     description: buildDescription({
       cell: s.cell, title: s.title ?? j.title, utm,
       song: s.song ?? null, walkingFlame: !!s.walkingFlame, tags: s.tags,
+      campaign: s.campaign,
     }),
   };
 

@@ -18,11 +18,14 @@ const GENERIC_TAG = { 198: '昭和レトロ', 199: '懐かしい', 200: '懐か�
 /**
  * 着地URL。`redial/docs/UTM_CONVENTION_2026-07.md` の標準形式に従う。
  * - medium は `short`（単数）。`shorts` は規約外＝/admin の集計で別枠になる
- * - パスはトップ `/`。以前は `/episodes` に着地させていたが、当時 LandingPing が
- *   トップにしか無く landing イベントが一件も立たなかった（2026-07-22に発覚）。
- *   受け皿はレイアウトへ引き上げ済みだが、着地先は規約どおりトップに揃える
+ * - パスは**セル直行 `/episodes/{cell}`**（2026-08-03〜）。トップ着地だと視聴者が
+ *   目当ての回をもう一度探すことになり、おかえりバナーと campaign 別の試聴セグ
+ *   出し分け（redial `lib/site.ts` TEASER_CAMPAIGN_SEGMENTS）の受け皿も
+ *   エピソードページ側にある。LandingPing はレイアウトに引き上げ済みなので
+ *   landing はどのパスでも立つ（2026-07-22の「トップにしか無い」問題は解消済み。
+ *   セル直行は 2026-08-03 の実投稿で計測実証済み）。
  */
-export function buildUrl({ cell, utm, song, walkingFlame, platform }) {
+export function buildUrl({ cell, utm, song, walkingFlame, platform, campaign }) {
   // platform を渡すと source を差し替える（同じ縦動画を Instagram Reels にも出すため。
   // 2026-07-30: 40〜50代の利用率は Instagram 48.5%・TikTok は30代で26.8%と薄いので Instagram を選んだ）。
   const u = platform
@@ -30,9 +33,12 @@ export function buildUrl({ cell, utm, song, walkingFlame, platform }) {
     : utm ?? { source: 'youtube', medium: 'short' };
   // campaign にセルだけを入れると、同じセルの型A（題材）と型B（曲予告）が
   // landing 計測で見分けられない。Playbook §8.5 は「類型別に維持率・登録・流入を読む」
-  // ことを判定基準にしているので、識別子に型を含める（-a=題材 / -b=曲予告）。
-  const campaign = `${cell}-${song ? 'b' : walkingFlame ? 'c' : 'a'}`;
-  return `https://redial.jp/?utm_source=${u.source}&utm_medium=${u.medium}&utm_campaign=${campaign}`;
+  // ことを判定基準にしているので、識別子に型を含める（-a=題材 / -b=曲予告 / -c=走馬灯）。
+  // 同セルに同型の2本目が出るときは manifest の `campaign` で明示する（例 `2000-spring-b2`）。
+  // ⚠️ -b2 系は redial 側 TEASER_CAMPAIGN_SEGMENTS との一致が唯一の配線
+  //    （UTM_CONVENTION §追記 2026-08-03）。自動導出はできないので必ず突き合わせる。
+  const c = campaign ?? `${cell}-${song ? 'b' : walkingFlame ? 'c' : 'a'}`;
+  return `https://redial.jp/episodes/${cell}?utm_source=${u.source}&utm_medium=${u.medium}&utm_campaign=${c}`;
 }
 
 /**
@@ -59,7 +65,7 @@ export function hashtagsFor(cell, topicTags) {
  * 説明欄本文。**mp4 を焼き直さずに作り直せる**ように writeMeta から切り出してある
  * （URL規約が変わっても make-shorts-upload-kit.mjs の再実行だけで反映できる）。
  */
-export function buildDescription({ cell, title, utm, song, walkingFlame, platform, tags: topicTags }) {
+export function buildDescription({ cell, title, utm, song, walkingFlame, platform, tags: topicTags, campaign }) {
   const year = cell.split('-')[0];
   const tags = hashtagsFor(cell, topicTags);
   return [
@@ -73,9 +79,14 @@ export function buildDescription({ cell, title, utm, song, walkingFlame, platfor
     // ▶（関連動画リンク）経由は 2,329再生に対し2クリック＝0.09%しか出なかった。加えて
     // 「タイトル下の▶」はYouTube専用の指示で、同じ動画を Instagram Reels に出せない。
     // どの面でも成立する文言に戻す（▶ の帯自体はYouTube側に自動で出るので導線は残る）。
-    `🎧 音楽つきのフルエピソード（無料）は redial.jp から。`,
+    //
+    // 型B（曲予告）は「この続き」と曲名で誘う（POST_2026-07-31 の型B文面を正とする。
+    // ショートが切ったクリフハンガー——次にかかる曲——をそのまま受ける文言）。
+    song
+      ? `🎧 この続き（このトークと、${song}）は redial.jp で聴けます。`
+      : `🎧 音楽つきのフルエピソード（無料）は redial.jp から。`,
     `※ ここではURLが押せません（コピー用）`,
-    buildUrl({ cell, utm, song, walkingFlame, platform }),
+    buildUrl({ cell, utm, song, walkingFlame, platform, campaign }),
     '',
     tags.map((t) => `#${t}`).join(' '),
   ].join('\n');
@@ -84,7 +95,7 @@ export function buildDescription({ cell, title, utm, song, walkingFlame, platfor
 export function writeMeta({ job, win, winClips, segmentName, mp3Path, outMp4 }) {
   const tags = hashtagsFor(job.cell, job.tags);
   const utm = job.utm ?? { source: 'youtube', medium: 'short' };
-  const description = buildDescription({ cell: job.cell, title: job.title, utm, song: job.song, walkingFlame: job.walkingFlame, tags: job.tags });
+  const description = buildDescription({ cell: job.cell, title: job.title, utm, song: job.song, walkingFlame: job.walkingFlame, tags: job.tags, campaign: job.campaign });
 
   const meta = {
     id: job.id,
@@ -99,6 +110,8 @@ export function writeMeta({ job, win, winClips, segmentName, mp3Path, outMp4 }) 
     source: { slug: job.cell, segmentName, audio: mp3Path.replace(/\\/g, '/') },
     description,
     utm,
+    // campaign の明示指定（-b2 系）。null なら buildUrl が型から導出した値が使われている
+    campaign: job.campaign ?? null,
     // 型B判定に使う（アップロード・キットが型の表示とUTMの識別子に使う）
     song: job.song ?? null,
     walkingFlame: !!job.walkingFlame,
