@@ -60,6 +60,14 @@ function buildJobsFromManifest(manifestPath) {
       hook: s.hook ?? 'clip', title: s.title ?? '', bg: s.bg ?? null,
       subsFile: s.subsFile ?? null, audience: s.audience ?? '',
       song: s.song ?? null, fixes: s.fixes ?? null,
+      // ⚠️ 2026-08-10 修正: **ここで campaign を渡し忘れていた**。writeMeta は job.campaign を
+      //   読むので、マニフェストに `campaign` を書いても出力メタは常に null になり、buildUrl が
+      //   型から導出した既定値（`{cell}-a` / `-b`）に落ちていた。refresh-meta.mjs を後から
+      //   流せば直るため運用では気づきにくいが、**忘れると着地の試聴セグメントが別の回になる**
+      //   ——例えば #31（1995-spring-b3・WOW WAR TONIGHT）は既定の -b に落ちると redial 側の
+      //   TEASER_SEGMENTS で春よ、来い(seg3)が再生され、動画が約束した「続き」と違う曲が流れる。
+      //   URL規約と受け皿の配線は campaign 文字列の一致だけが頼り（UTM_CONVENTION §追記）。
+      campaign: s.campaign ?? null,
       // 題材のハッシュタグ（本ごと）。一般語の大タグは効かないので題材固有を持たせる
       tags: s.tags ?? null,
       // 型C（走馬灯）: 複数断片の宣言と、問いで閉じるエンドカードの切替
