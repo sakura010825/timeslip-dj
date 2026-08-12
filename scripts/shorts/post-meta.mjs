@@ -90,7 +90,12 @@ export function buildDescription({ cell, title, utm, song, walkingFlame, platfor
     song
       ? `🎧 この続きは redial.jp で——このトークのあとに、${song}がまるごと流れます。`
       : `🎧 このトークの続きに、当時の名曲がそのまま流れます。フルエピソード（無料）は redial.jp から。`,
-    `※ ここではURLが押せません（コピー用）`,
+    // IG だけ「プロフィールのリンク」を添える（2026-08-13）。IG で唯一ワンタップで押せる導線が
+    // bio リンクなのに、キャプションはコピペしか案内していなかった（8/13朝、説明文URLを
+    // 手でコピペした実流入が初観測＝読まれてはいる）。YT は関連動画▶が自動で出るので現状のまま。
+    platform === 'instagram'
+      ? `※ ここではURLが押せません——プロフィールのリンクからどうぞ（下のURLはコピー用）`
+      : `※ ここではURLが押せません（コピー用）`,
     buildUrl({ cell, utm, song, walkingFlame, platform, campaign }),
     '',
     tags.map((t) => `#${t}`).join(' '),
