@@ -58,7 +58,7 @@ for (const id of ids) {
     year: s.cell.split('-')[0], season: s.cell.split('-')[1],
     title: s.title, topic: s.topic ?? (s.song ? null : s.hook),
     subsOverride: null, endcardSec: s.song ? 3.4 : s.walkingFlame ? 4.0 : 3.0,
-    djName: manifest.dj ?? '深夜のタイムスリップDJ・シンヤ',
+    djName: manifest.dj ?? '毎晩22時の深夜ラジオ・シンヤ',
     songCard: s.song ?? null, walkingFlame: !!s.walkingFlame, fixes: s.fixes ?? null,
   });
 

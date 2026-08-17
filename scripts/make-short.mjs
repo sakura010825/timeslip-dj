@@ -26,7 +26,7 @@ const PAD_END = args['pad-end'] != null ? Number(args['pad-end']) : 0.6;
 const MAX_SEC = args['max'] != null ? Number(args['max']) : 90;
 
 // シンヤ名乗り（既定ON・--no-dj で消す・--dj で差替）＝毎回「これは深夜DJラジオ」の正体を運ぶ
-const DEFAULT_DJ = '深夜のタイムスリップDJ・シンヤ';
+const DEFAULT_DJ = '毎晩22時の深夜ラジオ・シンヤ'; // 2026-08-17: フィードで見える唯一の番組表示（旧: 深夜のタイムスリップDJ・シンヤ）
 const DJ_NAME = args['no-dj'] ? null : (args.dj ? String(args.dj) : DEFAULT_DJ);
 
 function buildJobsFromArgs() {
