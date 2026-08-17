@@ -223,7 +223,14 @@ export function buildAss({ assPath, clips, year, season, title, topic, subsOverr
 
   const styles = [
     // Name,Fontname,Fontsize,Primary,Secondary,Outline,Back,Bold,Italic,U,S,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,ML,MR,MV,Encoding
-    'Style: Sub,Noto Sans JP,56,&H00FFFFFF,&H000000FF,&H00202020,&H80000000,1,0,0,0,100,100,0,0,1,3.4,2,2,72,72,430,1',
+    // ⚠️ MarginV は 430 → 760（2026-08-17・hide実機スクショから実測）。
+    //   YouTubeのショートUI（コメントプレビュー→ハンドル＋登録ボタン→タイトル→関連動画チップ→共有）は
+    //   **画面の67%から下を全部覆う**。MarginV 430 では字幕の下端が77.6%＝UIの下に潜り込み、
+    //   実際にスクショで2行目がコメントの吹き出しに完全に隠れていた（＝読めない字幕を出していた）。
+    //   760 にすると字幕の下端が y=1160（60.4%）に上がり、UIの上端（67%）との間に余白ができる。
+    //   ついでに中央の空白が埋まり、「見せたいもの（字幕）」と「押させたいもの（登録・チップ）」が
+    //   上下に分離する。
+    'Style: Sub,Noto Sans JP,56,&H00FFFFFF,&H000000FF,&H00202020,&H80000000,1,0,0,0,100,100,0,0,1,3.4,2,2,72,72,760,1',
     // ⚠️ MarginV は 64 → 200（2026-07-27・hide実機スクショから実測）。
     // YouTube自身のUI（戻る矢印・「ショート」ラベル・検索・その下のチップ行）が
     // **動画の上端から y=169 までを覆う**ため、64 ではバッジが完全に下敷きになっていた。
@@ -304,7 +311,9 @@ export function buildAss({ assPath, clips, year, season, title, topic, subsOverr
     // タイトルは長いと左右に溢れる（YouTube用のSEOタイトルをそのまま画面に出しているため）。
     // fs54は実測で1字=37.2px・使用幅900px（1080-90-90）→ 収まる上限24字。安全側で23。
     const cardText = wrapJa(assEscape(title), 23);
-    events.push(`Dialogue: 0,${assTime(0)},${assTime(Math.min(3.6, dur))},Endcard,,0,0,1140,,{\\fs54\\c&H00F0F0F0&}${cardText}${djLine}`);
+    // 位置 1140 → 1300（2026-08-17）: 字幕を MarginV 760 まで上げたので、
+    // 冒頭3.6秒はタイトルカードと字幕が同時に出る。カードも上げて重なりを避ける。
+    events.push(`Dialogue: 0,${assTime(0)},${assTime(Math.min(3.6, dur))},Endcard,,0,0,1300,,{\\fs54\\c&H00F0F0F0&}${cardText}${djLine}`);
   }
 
   const ass = [
