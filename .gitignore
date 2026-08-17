@@ -60,6 +60,10 @@ output/shorts/
 # 長尺アンカー生成物（T2-6・数十MBのmp4・サムネ・ASS）
 output/anchors/
 
+# 中尺「5分の深夜ラジオ」生成物（2026-08-17〜・1本40MB前後のmp4＋サムネ）
+# 宣言（data/midform.manifest.json）とCLIはコミットするので、動画はいつでも作り直せる
+output/midform/
+
 # チャンネルバナー / Xヘッダーの生成物（make-channel-banner.mjs でいつでも作り直せる）
 output/channel/
 
