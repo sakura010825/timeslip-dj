@@ -92,7 +92,9 @@ ${ANCHOR_URL}
 `);
 
 for (const { j } of metas) {
-  const mp4 = path.resolve(SHORTS_OUT, `${j.cell}-seg${j.seg}-${slug(j.hook)}.mp4`);
+  // 複数断片（型C・2断片の型B）は make-short.mjs が `{cell}-walk-{hook}` で名付ける（#15/#37）
+  const multi = Array.isArray(j.winClips) && j.winClips.length > 1;
+  const mp4 = path.resolve(SHORTS_OUT, multi ? `${j.cell}-walk-${slug(j.hook)}.mp4` : `${j.cell}-seg${j.seg}-${slug(j.hook)}.mp4`);
   const exists = fs.existsSync(mp4);
   blocks.push(`
 ---
@@ -111,12 +113,12 @@ ${j.title}
 
 **説明（YouTube）**（そのまま全部貼る）
 \`\`\`
-${buildDescription({ cell: j.cell, title: j.title, utm: j.utm, song: j.song, walkingFlame: j.walkingFlame, tags: j.topicTags, campaign: j.campaign })}
+${buildDescription({ cell: j.cell, title: j.title, utm: j.utm, song: j.song, walkingFlame: j.walkingFlame, tags: j.topicTags, campaign: j.campaign, hashtagYear: j.hashtagYear })}
 \`\`\`
 
 **キャプション（Instagram Reels）**（同じmp4をそのまま使える。UTMだけ instagram に差し替わっている）
 \`\`\`
-${buildDescription({ cell: j.cell, title: j.title, song: j.song, walkingFlame: j.walkingFlame, platform: 'instagram', tags: j.topicTags, campaign: j.campaign })}
+${buildDescription({ cell: j.cell, title: j.title, song: j.song, walkingFlame: j.walkingFlame, platform: 'instagram', tags: j.topicTags, campaign: j.campaign, hashtagYear: j.hashtagYear })}
 \`\`\`
 
 **関連動画**（YouTubeのみ・この動画にリンクする長尺）

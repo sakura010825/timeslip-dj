@@ -53,8 +53,10 @@ export function buildUrl({ cell, utm, song, walkingFlame, platform, campaign }) 
  *
  * 題材タグはマニフェストの `tags` に本ごとに書く（音声に無くてもよいが、題材と一致させる）。
  */
-export function hashtagsFor(cell, topicTags) {
-  const year = cell.split('-')[0];
+// hashtagYear: 冬セルは「1999-winter＝2000年1〜3月」のように暦年とずれる（#37 ビューティフルライフ）。
+// 題名が言う年と #タグの年が食い違うと検索で拾われないので、manifest の hashtagYear で上書きできる。
+export function hashtagsFor(cell, topicTags, hashtagYear) {
+  const year = hashtagYear ? String(hashtagYear) : cell.split('-')[0];
   const decadeKey = year.slice(0, 3);
   const base = [`${year}年`, DECADE_TAG[decadeKey]].filter(Boolean);
   const topics = (topicTags ?? []).filter(Boolean);
@@ -65,9 +67,9 @@ export function hashtagsFor(cell, topicTags) {
  * 説明欄本文。**mp4 を焼き直さずに作り直せる**ように writeMeta から切り出してある
  * （URL規約が変わっても make-shorts-upload-kit.mjs の再実行だけで反映できる）。
  */
-export function buildDescription({ cell, title, utm, song, walkingFlame, platform, tags: topicTags, campaign }) {
+export function buildDescription({ cell, title, utm, song, walkingFlame, platform, tags: topicTags, campaign, hashtagYear }) {
   const year = cell.split('-')[0];
-  const tags = hashtagsFor(cell, topicTags);
+  const tags = hashtagsFor(cell, topicTags, hashtagYear);
   return [
     title || `${year}年の、あの季節。`,
     '',
@@ -88,7 +90,7 @@ export function buildDescription({ cell, title, utm, song, walkingFlame, platfor
     // 見えていない問題・hide指摘）。**曲が「そのまま／まるごと流れる」ことを1行目で言う**。
     // サイト側は「最初のひと晩」（登録=その夜1本まるごと解放）が入ったので約束は果たせる。
     song
-      ? `🎧 この続きは redial.jp で——このトークのあとに、${song}がまるごと流れます。`
+      ? `🎧 この続きは redial.jp で——このトークのあとに、『${song}』がまるごと流れます。`
       : `🎧 このトークの続きに、当時の名曲がそのまま流れます。フルエピソード（無料）は redial.jp から。`,
     // IG だけ「プロフィールのリンク」を添える（2026-08-13）。IG で唯一ワンタップで押せる導線が
     // bio リンクなのに、キャプションはコピペしか案内していなかった（8/13朝、説明文URLを
@@ -103,9 +105,9 @@ export function buildDescription({ cell, title, utm, song, walkingFlame, platfor
 }
 
 export function writeMeta({ job, win, winClips, segmentName, mp3Path, outMp4 }) {
-  const tags = hashtagsFor(job.cell, job.tags);
+  const tags = hashtagsFor(job.cell, job.tags, job.hashtagYear);
   const utm = job.utm ?? { source: 'youtube', medium: 'short' };
-  const description = buildDescription({ cell: job.cell, title: job.title, utm, song: job.song, walkingFlame: job.walkingFlame, tags: job.tags, campaign: job.campaign });
+  const description = buildDescription({ cell: job.cell, title: job.title, utm, song: job.song, walkingFlame: job.walkingFlame, tags: job.tags, campaign: job.campaign, hashtagYear: job.hashtagYear });
 
   const meta = {
     id: job.id,
@@ -129,6 +131,7 @@ export function writeMeta({ job, win, winClips, segmentName, mp3Path, outMp4 }) 
     // 題材タグの原本。キット再生成（make-shorts-upload-kit.mjs）が mp4 を焼き直さずに
     // 説明文を作り直せるよう、組み立て済みの hashtags とは別に生の指定を残す
     topicTags: job.tags ?? null,
+    hashtagYear: job.hashtagYear ?? null,
     note: '説明欄URLはショートではクリック不能。送客は関連動画→長尺アンカー＋プロフィールリンク（MARKETING_FUNNEL §3.1）',
   };
 

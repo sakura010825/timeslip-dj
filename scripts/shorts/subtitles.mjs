@@ -105,23 +105,53 @@ function toPhrases(text) {
 const dispLen = (s) => Array.from(s ?? '')
   .reduce((n, ch) => n + (/[\x00-\xFF｡-ﾟ]/.test(ch) ? 0.5 : 1), 0);
 
-/** 折り返しの最小単位。全角は1文字＝1トークン、半角の連続（1995 / ReDial 等）は割らずに1トークン。 */
+/** 折り返しの最小単位。全角は1文字＝1トークン、半角の連続（1995 / ReDial 等）は割らずに1トークン。
+ *  2026-08-18 追加（#37『ビューティフルライフ』が「ライ／フ」に割れた・行長を揃える再折り返しが語の中で切る）:
+ *   ・『…』「…」《…》の括弧内は1トークン（番組名・曲名は割らない）
+ *   ・カタカナの連続（ー・゛゜含む）は1トークン（外来語・人名は割らない）
+ *  どちらも幅が MAX_LINE を超える塊はこれまでどおり1字ずつに戻す（1行に収まらない語は割るしかない）。 */
 function tokenizeJa(s) {
+  const src = Array.from(s ?? '');
   const toks = [];
   let buf = '';
-  for (const ch of Array.from(s ?? '')) {
+  const flush = () => { if (buf) { toks.push(buf); buf = ''; } };
+  const isKata = (ch) => /[゠-ヿー]/.test(ch);
+  const OPEN = { '『': '』', '「': '」', '《': '》', '【': '】' };
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
     if (/[0-9A-Za-z]/.test(ch)) { buf += ch; continue; }
-    if (buf) { toks.push(buf); buf = ''; }
+    if (isKata(ch)) {
+      // カタカナ連続をまとめる（直前が半角英数バッファならそちらは先に閉じる）
+      flush();
+      let j = i; let run = '';
+      while (j < src.length && isKata(src[j])) { run += src[j]; j++; }
+      if (dispLen(run) <= MAX_LINE) { toks.push(run); i = j - 1; continue; }
+      toks.push(ch); continue;
+    }
+    if (OPEN[ch]) {
+      flush();
+      const close = OPEN[ch];
+      const k = src.indexOf(close, i + 1);
+      if (k > i) {
+        const span = src.slice(i, k + 1).join('');
+        if (dispLen(span) <= MAX_LINE) { toks.push(span); i = k; continue; }
+      }
+      toks.push(ch); continue;
+    }
+    flush();
     toks.push(ch);
   }
-  if (buf) toks.push(buf);
+  flush();
   return toks;
 }
 
 /** ⚠️ libassは空白の無い日本語を自動折返ししない（WrapStyle:0は空白でしか折らない）。
  *  2026-07-16にアンカー側で判明し、ショートも同じ穴だった（読点の無い長文が画面外へ溢れる）。
  *  文字数で折るが、西暦や英単語は割らず、行頭に来てはいけない約物は前行に残す。 */
-const CLOSER = /^[、。，．！？!?」』）\]｝・ー…ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮ]$/;
+// 2026-08-18: 助詞（の・が・は・を・に・と・で・も・へ・や）も行頭に置かない（日本語組版の慣例。
+// 「ズ／の」「ラジオ／から」型の助詞行頭を空白で逃げていた（#33/#35）のを規則にする。1字はみ出しは
+// 句読点と同じ扱い＝MAX_LINE は実幅（936px≒24字）に対して十分安全側なので溢れない）
+const CLOSER = /^[、。，．！？!?」』）\]｝・ー…ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮのがはをにとでもへや]$/;
 
 /** トークン列を幅 max で貪欲に折る。行頭に来てはいけない約物は前行に残す。 */
 function wrapTokens(toks, max) {
@@ -410,8 +440,14 @@ export function buildAss({ assPath, clips, year, season, title, topic, subsOverr
   //   ③ 「次の季節も届きます」は通知が前提の約束だが、**登録してもショートはほぼ通知されない**
   //      （公式ヘルプ）＝果たせない約束だった。時刻を言う形なら約束は果たせる
   const CTA = `\\N{\\fs48\\c&H00FFFFFF&}フル版（無料）は ${SITE}\\N{\\fs34\\c&H00D0D0D0&}明日の22時も、どこかの季節を。`;
+  // 曲予告の1行目。曲名が長いと「…が流れ／ます」の落ち穂になる（#37『今夜月の見える丘に』で実測・
+  // 2026-08-18）ので、1行に収まらないときは「が」で折って「流れます」を2行目に置く（曲名は割らない）。
+  const songLine = (song) => {
+    const one = `♪ ここで「${assEscape(song)}」が流れます`;
+    return dispLen(one) <= 19 ? one : `♪ ここで「${assEscape(song)}」が\\N流れます`;
+  };
   const endcard = songCard
-    ? `${wrapJa(`♪ ここで「${assEscape(songCard)}」が流れます`, 19)}${CTA}`
+    ? `${songLine(songCard)}${CTA}`
     : walkingFlame
       ? `${wrapJa(`ぜんぶ、${year}年の${seasonJP}です。`, 19)}\\N{\\fs40\\c&H00C8C8C8&}あなたの${seasonJP}は、何年ですか。${CTA}`
       : `♪ この続きに、あの頃の曲が流れます${CTA}`;

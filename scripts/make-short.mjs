@@ -90,6 +90,8 @@ function buildJobsFromManifest(manifestPath) {
       card: s.card ?? null,
       cardFont: args['card-font'] ? String(args['card-font']) : (s.cardFont ?? m.cardFont ?? 'mincho'),
       cardSize: args['card-size'] ? String(args['card-size']) : (s.cardSize ?? m.cardSize ?? 'M'),
+      // #タグの年（冬セルの暦年ずれ用・省略可）
+      hashtagYear: s.hashtagYear ?? null,
     }));
 }
 
