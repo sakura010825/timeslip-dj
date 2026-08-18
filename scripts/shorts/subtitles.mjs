@@ -11,6 +11,75 @@ const SEASON_JP = { spring: '春', summer: '夏', autumn: '秋', winter: '冬' }
 const MAX_LINE = 15; // 1行の全角目安（フォント56px・使用幅936px≒16.7字ぶん）。超えたら改行する
 const SPLIT_EVENT = 34; // これを超えるsegmentは時間比で2イベントに分割
 
+/**
+ * 見出し札（2026-08-18・SHORTS_RECIPE §2-j）＝**最初の1秒で「読む」のではなく「見える」札**。
+ *
+ * なぜ要るか: チャンネルの常態は「視聴を継続」11〜20%（目に入った人の8割超が1秒でスワイプ）。
+ * 同ジャンルで回っている2アカウント（@実はな実話 中央値22.6万再生／音楽語りカセットくん 9.3万）を
+ * 実測したところ、**登録率はうち（0.044%）と同じ 0.043〜0.045%**で、差は1本が通過する人数だけだった。
+ * 向こうの焼き込み札は画面高の8〜12%／行・8〜12字・全尺表示。うちの旧タイトルカードは fs54
+ * （2.8%／行）・23字×2行・0〜3.6秒で消える＝**205pxのサムネで5.8px・判読不能**、読み切るのに約3秒。
+ *
+ * 設計（案X・hide承認 2026-08-18）:
+ *   - 題名（メタデータ・24〜30字の文）とは**別に**、2行×各10字以内の見出しを毎回書く（manifest `card`）
+ *   - fs130（画面高の6.8%＝旧の2.4倍）。205pxサムネで約14px＝読める
+ *   - 極太の明朝（新聞見出し）。トリビア系のポップゴシック＋黄色とは違う顔にする
+ *   - 色は生成り（クリーム）＋ `*語*` で囲んだ1語だけ琥珀（ダイヤルの灯り）。黄色は使わない
+ *   - 上段（YouTube UI y≤169 とバッジ/CTA の下・字幕の上）・**全尺表示**（サムネにどのフレームが
+ *     選ばれても札が乗る／向こうも全尺）
+ *   - S3（儀式・道具）の見出しは「手で触れる物・動作・音」を必ず1つ入れる（「そうそう」は具体物で発火する）
+ * `card` 未指定なら従来の小さなタイトルカード（旧レンダの再現用）。
+ */
+/**
+ * 札の大きさ（使用幅 960px = 1080 - 60 - 60 に収める）:
+ *   M = 10字×2行（1字≒92px・画面高の4.8%）…… 文として書ける最小の大きさ
+ *   L =  7字×3行（1字≒128px・画面高の6.7%）…… 向こうの札に近い。字を減らして大きく
+ * fs は HG（行高≒1em）基準。Noto は行高1.448em なので ×1.41 する（resolveCardFont）。
+ */
+const CARD_SIZES = {
+  M: { max: 10, lines: 2, fsHG: 92, fsNoto: 130 },
+  L: { max: 7, lines: 3, fsHG: 128, fsNoto: 180 },
+};
+const CARD_CREAM = '&H00D3EAF3&';    // #F3EAD3（ASSはBGR順）
+const CARD_AMBER = '&H0041B4F2&';    // #F2B441 ダイヤルの灯り
+
+/**
+ * 見出し札の書体プリセット（2026-08-18 実測で選定）。
+ *
+ * ⚠️ libass の Fontsize は em ではなく**行の高さ（ascent+descent）**。Noto CJK は 1.448em なので
+ *   fs130 で 1字≒89px、HG系（Office同梱・行の高さ≒1em）は fs92 で 1字≒92px。**同じ見た目の
+ *   大きさにするには HG は fs92 が Noto の fs130 に相当**する（fs130 のままだと10字=1300pxで画面外）。
+ * ⚠️ HG明朝E／HG創英角ゴシックUB は Microsoft Office 同梱（C:\Windows\Fonts\HGRME.TTC 等）。
+ *   **repo には入れない**（再配布不可）。libass はシステムフォントも引けるので family 名で参照する。
+ *   ただし libass は見つからない書体を**黙って別のシステム書体に置き換える**（Yu Gothic 等・2026-08-18 実測）
+ *   ので、ファイルの存在を先に確かめて、無ければ落とす（黙って壊れる系は必ず先に止める）。
+ * Noto（'noto'）は repo 同梱の可変フォント。Bold=1 は疑似ボールドで太さはほぼ出ない（実測）が、
+ * どのPCでも同じに描ける安全側の書体として残す。
+ */
+const CARD_FONTS = {
+  // 極太明朝＝当時の新聞見出し・チラシの顔。トリビア系のポップゴシックと違う（本命）
+  mincho: { family: 'HG明朝E', file: 'C:/Windows/Fonts/HGRME.TTC', hg: true, bold: 0, outline: 5, dj: 30 },
+  // 90年代テレビテロップの太ゴシック（比較用・音が大きい）
+  gothic: { family: 'HG創英角ｺﾞｼｯｸUB', file: 'C:/Windows/Fonts/HGRSGU.TTC', hg: true, bold: 0, outline: 5, dj: 30 },
+  // repo同梱・どのPCでも同じ（控えめ）
+  noto: { family: 'Noto Serif JP', file: null, hg: false, bold: 1, outline: 6, dj: 34 },
+  'noto-sans': { family: 'Noto Sans JP', file: null, hg: false, bold: 1, outline: 6, dj: 34 },
+};
+CARD_FONTS.serif = CARD_FONTS.noto;       // 旧名の別名
+CARD_FONTS.sans = CARD_FONTS['noto-sans'];
+
+export function resolveCardFont(name, size = 'M') {
+  const key = String(name ?? 'mincho');
+  const f = CARD_FONTS[key];
+  if (!f) throw new Error(`cardFont「${key}」は未定義です（${Object.keys(CARD_FONTS).join(' / ')}）`);
+  const sz = CARD_SIZES[String(size ?? 'M')];
+  if (!sz) throw new Error(`cardSize「${size}」は未定義です（${Object.keys(CARD_SIZES).join(' / ')}）`);
+  if (f.file && process.platform === 'win32' && !fs.existsSync(f.file)) {
+    throw new Error(`見出し札の書体「${f.family}」がこのPCにありません（${f.file}）\n   → Office同梱フォント。無いPCでは cardFont を noto にしてください（黙って別書体に落ちるのを防ぐため止めています）`);
+  }
+  return { key, ...f, fs: f.hg ? sz.fsHG : sz.fsNoto, size: sz };
+}
+
 /** ASSテキスト用エスケープ（改行・オーバーライド記号の暴発防止） */
 function assEscape(s) {
   return (s ?? '').replace(/\\/g, '＼').replace(/[{}]/g, '').replace(/\r?\n/g, ' ').trim();
@@ -98,6 +167,40 @@ function wrapJa(s, max = MAX_LINE) {
     if (balanced.length === n) return balanced.join('\\N');
   }
   return greedy.join('\\N');
+}
+
+/**
+ * 見出し札のテキストを ASS 用に組む。
+ *   - 改行は書き手が `\n` で明示（無ければ wrapJa で CARD_MAX 幅に折る）
+ *   - `*語*` は琥珀色（1語だけ・固有名詞か触れる物）
+ *   - 各行 CARD_MAX 字・CARD_LINES_MAX 行を超えたら**落とさず止める**（溢れた札は
+ *     サムネで切れる＝「見える札」の目的が死ぬ。書き直してもらう）
+ * 戻り値は { text, lines }。
+ */
+export function buildCardText(card, size = 'M') {
+  const raw = String(card ?? '').replace(/\r\n/g, '\n').trim();
+  if (!raw) return null;
+  const sz = CARD_SIZES[String(size ?? 'M')] ?? CARD_SIZES.M;
+  const lines = raw.includes('\n')
+    ? raw.split('\n').map((l) => l.trim()).filter(Boolean)
+    : wrapJa(raw.replace(/\*/g, ''), sz.max).split('\\N');
+  const problems = [];
+  if (lines.length > sz.lines) problems.push(`${lines.length}行（上限${sz.lines}行）`);
+  for (const l of lines) {
+    const w = dispLen(l.replace(/\*/g, ''));
+    if (w > sz.max) problems.push(`「${l.replace(/\*/g, '')}」が${w}字（上限${sz.max}字）`);
+  }
+  if (problems.length) {
+    throw new Error(`見出し札（サイズ${size}）が収まりません: ${problems.join('／')}\n   → manifest の card を ${sz.lines}行×各${sz.max}字以内に書き直してください（改行は \\n で明示）`);
+  }
+  // `*語*` → 琥珀。閉じ忘れは無視（そのまま * を消す）
+  const painted = lines.map((l) => {
+    const esc = assEscape(l);
+    const n = (esc.match(/\*/g) ?? []).length;
+    if (n < 2) return esc.replace(/\*/g, '');
+    return esc.replace(/\*([^*]+)\*/g, `{\\c${CARD_AMBER}}$1{\\c${CARD_CREAM}}`).replace(/\*/g, '');
+  });
+  return { text: painted.join('\\N'), lines: painted.length };
 }
 
 /** フレーズ配列を1つの表示テキストに。長い場合はフレーズ境界（中央寄り・句読点優先）で改行し、
@@ -199,10 +302,13 @@ function applyFixes(text, fixes) {
  * clips = [{ segments, win }, ...]。型A/型Bは1要素、型C（走馬灯）は複数。
  * 断片ごとに時刻を先頭からの通算へ寄せて1本の字幕トラックにする。
  */
-export function buildAss({ assPath, clips, year, season, title, topic, subsOverride, endcardSec, djName, songCard, walkingFlame, fixes }) {
+export function buildAss({ assPath, clips, year, season, title, topic, subsOverride, endcardSec, djName, songCard, walkingFlame, fixes, card, cardFont, cardSize }) {
   const dur = clips.reduce((s, c) => s + c.win.dur, 0);
   const total = dur + endcardSec;
   const seasonJP = SEASON_JP[season] ?? '';
+  const cardBuilt = buildCardText(card, cardSize);
+  // 書体の存在確認は card があるときだけ（無い旧レンダは HG が無いPCでも通す）
+  const cf = cardBuilt ? resolveCardFont(cardFont, cardSize) : { ...CARD_FONTS.noto, fs: 130 };
 
   let subEvents;
   if (subsOverride) {
@@ -246,6 +352,11 @@ export function buildAss({ assPath, clips, year, season, title, topic, subsOverr
     // 縦をずらして視覚的に分離する（横は バッジ x54-219 / CTA x320-760 で元々重ならない）。
     // 見た目: 半透明の白＋濃い縁取りで、明暗どちらの背景でも沈まず、声の没入も壊さない控えめさ。
     'Style: Cta,Noto Serif JP,40,&H1AF4F4F4,&H00000000,&H80000000,&HA0000000,0,0,0,0,100,100,0,0,1,2.6,1,8,60,60,300,1',
+    // 見出し札（2026-08-18・ファイル冒頭のコメント参照）。上段・全尺・極太。書体は CARD_FONTS。
+    // 位置: 上端 y=400。上には UI(〜169)→バッジ(200〜)→CTA(300〜340) が積まれ、下は字幕の上端(≈1010)。
+    // 2行でも y≈400〜780 に収まり、字幕との間に約230pxの余白が残る。
+    // 縁取り＋影 2: 背景写真は本ごとに明るさが違い、Ken Burns で動く。明るい箇所でも生成りが沈まないため。
+    `Style: Card,${cf.family},${cf.fs},${CARD_CREAM.slice(0, -1)},&H00000000,&H001A140C,&H90000000,${cf.bold},0,0,0,100,100,0,0,1,${cf.outline},2,8,60,60,400,1`,
   ];
 
   const events = [];
@@ -304,8 +415,21 @@ export function buildAss({ assPath, clips, year, season, title, topic, subsOverr
     : walkingFlame
       ? `${wrapJa(`ぜんぶ、${year}年の${seasonJP}です。`, 19)}\\N{\\fs40\\c&H00C8C8C8&}あなたの${seasonJP}は、何年ですか。${CTA}`
       : `♪ この続きに、あの頃の曲が流れます${CTA}`;
-  events.push(`Dialogue: 0,${assTime(dur)},${assTime(total)},Endcard,,0,0,0,,${endcard}`);
-  if (title) {
+  // 見出し札がある弾は、エンドカードを**札と同じ上段（y=400〜）**に出す（2026-08-18）。
+  // 札は dur で消えるので、同じ場所に宛先が入れ替わる＝視線を動かさない。画面中央（従来の位置）は
+  // 背景の焦点（#36 ではドームの屋根と入口の灯り）と重なって読めなかった（フレーム実測）。
+  // 札の無い旧レンダは従来どおり中央。
+  events.push(cardBuilt
+    ? `Dialogue: 0,${assTime(dur)},${assTime(total)},Endcard,,0,0,400,,{\\an8}${endcard}`
+    : `Dialogue: 0,${assTime(dur)},${assTime(total)},Endcard,,0,0,0,,${endcard}`);
+  if (cardBuilt) {
+    // 見出し札（全尺）。名乗りは札の下に小さく常設＝「番組名つきのコーナータイトル」として一体で見せる
+    // （旧カードでは3.6秒で消えていた。フィードで見える番組表示は名乗りだけ＝2026-08-17）。
+    // 名乗りは書体をNotoに戻す（HG明朝Eの小さい字は潰れる）。色は字幕と同じ白＋縁取り3.4:
+    // 灰色（B8B0A0）だと明るい面（#36 ドームの屋根）で沈んだ（2026-08-18 フレーム実測）。
+    const djLine = djName ? `\\N{\\fnNoto Serif JP\\b0\\fs${cf.dj}\\bord3.4\\shad2\\c&H00F4F4F4&}${assEscape(djName)}` : '';
+    events.push(`Dialogue: 0,${assTime(0)},${assTime(dur)},Card,,0,0,0,,${cardBuilt.text}${djLine}`);
+  } else if (title) {
     // 冒頭に「何の話か」を平易に提示＋シンヤ名乗りで「これは深夜DJラジオ」という正体を毎回運ぶ。
     const djLine = djName ? `\\N{\\fs32\\c&H00B0B0B0&}${assEscape(djName)}` : '';
     // タイトルは長いと左右に溢れる（YouTube用のSEOタイトルをそのまま画面に出しているため）。

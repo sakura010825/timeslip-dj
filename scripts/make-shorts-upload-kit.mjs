@@ -24,7 +24,19 @@ import { buildDescription } from './shorts/post-meta.mjs';
 const SHORTS_OUT = path.resolve(OUT_ROOT); // output/shorts
 const anchorsM = readJson(path.resolve('data', 'anchors.manifest.json'));
 const freeAnchor = (anchorsM.anchors ?? []).find((a) => a.free) ?? null;
-const ANCHOR_URL = freeAnchor?.url ?? '（未設定：アンカー公開後に data/anchors.manifest.json の url を埋める）';
+// 関連動画の既定 = **その週の中尺**（SNS_NIGHT_RITUAL A-2・2026-08-17〜）。中尺は説明欄のURLが押せるので
+// ショート→中尺→サイトが唯一「タップだけ」で繋がる。公開済み（videoId あり）の最新の中尺を選び、
+// 無ければ従来どおり無料フル版アンカー（1990春）。
+const midformM = fs.existsSync(path.resolve('data', 'midform.manifest.json'))
+  ? readJson(path.resolve('data', 'midform.manifest.json')) : { items: [] };
+const latestMidform = (midformM.items ?? []).filter((x) => x.videoId && x.url)
+  .sort((a, b) => String(b.publishedAt ?? '').localeCompare(String(a.publishedAt ?? '')))[0] ?? null;
+const ANCHOR_URL = latestMidform?.url
+  ?? freeAnchor?.url
+  ?? '（未設定：アンカー公開後に data/anchors.manifest.json の url を埋める）';
+const ANCHOR_LABEL = latestMidform
+  ? `今週の中尺「${String(latestMidform.title ?? '').slice(0, 24)}…」（説明欄URLが押せる）`
+  : '無料回アンカー（1990春）';
 
 // 現行の .json（_superseded は除外）を読み、id 順に
 const metas = fs.readdirSync(SHORTS_OUT)
@@ -41,11 +53,11 @@ YouTube Studio の入力欄の順に並べてあります。上から順にコ�
 
 ## ⚠️ 先に確認: 関連動画リンク先（＝二段導線の実体）
 
-全 ${metas.length} 本の「関連動画」を **無料回アンカー（1990春）** に向けます:
+全 ${metas.length} 本の「関連動画」を **${ANCHOR_LABEL}** に向けます:
 \`\`\`
 ${ANCHOR_URL}
 \`\`\`
-- なぜ全部これ1本か: 登録なしでフル版が聴ける唯一の回＝「掴み→フル体験→サイト」が完結する。ショートとアンカーのセル一致は不要（MARKETING_FUNNEL §3.1 / SHORTS_PLAYBOOK §8）。
+- なぜ全部これ1本か: 中尺は**説明欄のURLが押せる**（ショート→中尺→サイトが唯一タップだけで繋がる・SNS_NIGHT_RITUAL A-2）。中尺が無い週は無料回アンカー（登録なしでフル版が聴ける唯一の回）。ショートとリンク先のセル一致は不要（MARKETING_FUNNEL §3.1 / SHORTS_PLAYBOOK §8）。
 - リンク先が**既に公開済み**である必要がある（1990春は公開済み）。
 - Shorts は説明欄リンクがクリック不能なので、これが送客の主経路。加えてプロフィールのリンクも効く。
 
@@ -58,7 +70,7 @@ ${ANCHOR_URL}
 | カテゴリ | エンターテイメント |
 | 言語 | 日本語 |
 | コメント | 許可（同窓会になる。返信はハートのみ＝世界観保護） |
-| 関連動画 | 上記アンカー（1990春）を各本に設定 |
+| 関連動画 | 上記リンク先を各本に設定 |
 
 ## 投稿ペース（一度にまとめて上げない）
 
@@ -119,7 +131,7 @@ blocks.push(`
 
 ## アップロード後にやること
 
-1. **全本の「関連動画」がアンカー（1990春）を指しているか**を1本ずつ確認（二段導線の要）
+1. **全本の「関連動画」が上記リンク先を指しているか**を1本ずつ確認（二段導線の要）
 2. ショート用の再生リスト（任意）にまとめておくと後で導線を張り替えやすい
 3. 数字を読む: 類型別に維持率 / プロフィールリンクのクリック / サイト側 UTM（\`utm_medium=short\`）/ 登録。
    **サイト側は \`/admin\` の「2. ファネル・会員KPI」の 訪問(landing) と「4. SNS反応」で見る**（Vercel Analytics でも見える）

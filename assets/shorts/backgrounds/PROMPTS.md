@@ -137,3 +137,25 @@ konbiniの斜めの帯に矩形跡／双一次補間は purikura の光の筋を
 ```
 1990年代終わりの日本の深夜の部屋。小さな机の上にノートパソコン（画面は暗い）、そこから壁へ伸びる細い電話線、暖色のデスクランプの灯り。マグカップとメモ帳がぼけて写る。ベッドとチェックのカーテン。静かで親密な夜の空気、深い影、無人、文字なし、フォトリアル、縦長9:16。
 ```
+
+## dome-outside-night.png ／ 東京ドームの外・入れなかった人（1990春・#36 ポール見出し札版）
+
+⚠️ 実在の建物名・顔・文字は描かせない。**中のステージではなく「外から見上げる白い屋根の灯り」**にする。
+札が「ポール来日／入れなかった／人もいた」、音声が「遠くから漏れる音を聞いていた人も」なので、
+絵も**入れなかった側の視点**で一致させる（2026-08-18 hide指摘: #27は甲子園ナイターの代用で題材と不一致だった）。
+見出し札（画面高22〜42%・生成り文字）の背後に来る屋根の灯りは**柔らかく、白飛びさせない**（文字の可読性）。
+
+**ChatGPT 短縮版（第一候補・肯定文のみ）:**
+```
+1990年3月の日本、夜。大きな白い屋根のドーム球場を、外の広場から見上げた構図。屋根が内側からの光でやわらかく暖かく発光し、深い群青の夜空に浮かんでいる。入口の方から暖色の光がこぼれ、コンクリートの広場に長く反射する。少し離れた場所に、ドームの方を向いて立つ数人の小さな後ろ姿のシルエット（顔は見えない）。まだ肌寒い早春の空気、静かで、遠くから音楽が漏れ聞こえてきそうな余韻。画面の下3分の1は暗く空けておく。フォトリアル、シネマティック、フィルムの粒子、縦長9:16。
+```
+
+**Gemini 詳細版:**
+```
+A tall vertical 9:16 cinematic photograph, Japan, a night in March 1990. Looking up from an open concrete plaza at a huge anonymous domed stadium with a soft white air-supported roof, the roof glowing gently and warmly from the light inside, floating against a deep indigo night sky. Warm light spills from the distant entrance gates and reflects in long streaks across the plaza. A few small anonymous silhouettes stand far away with their backs to the camera, facing the dome, as if listening to music leaking from inside. Cold early-spring air, quiet, wistful. The glowing roof sits in the upper-middle of the frame but is soft, never blown-out white; the lower third stays dark and empty for captions. No text, no logos, no signage, no readable faces, no watermark. Photorealistic, muted palette, 35mm film grain, vertical 1080x1920.
+```
+
+（予備・中の光: 上の外観が絵にならない場合）
+```
+A tall vertical 9:16 cinematic photograph from high in the dark stands of a huge domed arena at night, 1990. Far below, a distant stage glows with warm white and amber lights and a soft haze; the vast dark audience is only a faint texture of tiny lights, no faces. The dome's white roof curves overhead, faintly lit. Grand, hushed, the moment before the first song. No text, no logos, no faces, no watermark. Muted palette, deep shadows, lower third dark. Photorealistic, film grain, vertical 1080x1920.
+```

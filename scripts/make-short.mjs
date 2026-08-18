@@ -8,6 +8,7 @@
  *     --cell 1995-spring --seg 1 \
  *     --start "最後まで残っていた六甲道駅は" --end "関西の人は知っている。" \
  *     --hook "駅の段ボール" --title "…" [--bg night-station.png] \
+ *     [--card "見出し1行目\n2行目"] [--card-font mincho|gothic|noto] \
  *     [--pad-start 0.25] [--pad-end 0.6] [--max 60] [--subs-file x.txt] [--dry-run]
  *
  * usage（バッチ）:
@@ -46,6 +47,10 @@ function buildJobsFromArgs() {
     song: args.song ? String(args.song) : null,   // 型B: 曲予告クリフハンガー
     fixes: null,
     djName: DJ_NAME,
+    // 見出し札（2026-08-18）。改行はリテラルの「\n」2文字で明示（--card "ポール、東京ドーム\n入れなかった人もいた"）
+    card: args.card ? String(args.card).replace(/\\n/g, '\n') : null,
+    cardFont: args['card-font'] ? String(args['card-font']) : 'mincho',
+    cardSize: args['card-size'] ? String(args['card-size']) : 'M',
   }];
 }
 
@@ -80,6 +85,11 @@ function buildJobsFromManifest(manifestPath) {
       padStart: s.padStart ?? null, padEnd: s.padEnd ?? null,
       djName: args['no-dj'] ? null : (args.dj ? String(args.dj) : manifestDj),
       utm: m.utm,
+      // 見出し札（2026-08-18・SHORTS_RECIPE §2-j）: 2行×各10字以内。題名とは別に書く。
+      // 未指定なら従来の小さなタイトルカード（旧レンダの再現用）。
+      card: s.card ?? null,
+      cardFont: args['card-font'] ? String(args['card-font']) : (s.cardFont ?? m.cardFont ?? 'mincho'),
+      cardSize: args['card-size'] ? String(args['card-size']) : (s.cardSize ?? m.cardSize ?? 'M'),
     }));
 }
 
@@ -219,6 +229,9 @@ async function processJob(job) {
     songCard: job.song,
     walkingFlame: !!job.walkingFlame,
     fixes: job.fixes,
+    card: job.card,
+    cardFont: job.cardFont,
+    cardSize: job.cardSize,
   });
 
   await renderShort({
