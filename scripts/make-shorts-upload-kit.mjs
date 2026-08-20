@@ -22,6 +22,75 @@ import { readJson, OUT_ROOT } from './shorts/util.mjs';
 import { buildDescription } from './shorts/post-meta.mjs';
 
 const SHORTS_OUT = path.resolve(OUT_ROOT); // output/shorts
+
+/**
+ * 型D（トーク→曲）専用: 「ボーカルの入り」秒数の目安（2026-08-20・SHORTS_RECIPE §2-k′）。
+ * 曲の実音源はリポジトリに無いため、WebSearchで確認した一般に知られる曲構造（イントロ長・
+ * 歌い出しの通称）から算出した目安。id をキーに手で管理（曲ごとに調査結果が違うため自動化しない）。
+ * 「頭出し位置」= ボーカルの入り − トーク実測秒数（残りのイントロがトークの下で鳴り、
+ * トーク終了と同時にボーカルが来る計算）。**必ずアプリで試聴して微調整**——各エントリに明記。
+ */
+const SONGTAIL_VOCAL_NOTES = {
+  40: { // 真夏の果実（サザンオールスターズ）
+    talkSec: 14.2,
+    vocalStart: '約18秒目（Re:minder「イントロ秒数徹底調査」シリーズ・グロッケン3音のイントロという記述は複数ソースで裏取り。正確な秒数の一次資料は無いため目安）',
+    cueOffset: '約4秒目（18−14.2）から頭出し。曲の頭のグロッケン最初の1音だけ聴かせてから残り約14秒のイントロをトークの下で鳴らすイメージ',
+  },
+  41: { // TSUNAMI（サザンオールスターズ）
+    talkSec: 14.8,
+    vocalStart: '曲の頭からごく数秒（桑田佳祐本人が「イントロを必要としない」設計と証言・正確な秒数の情報源なし）',
+    cueOffset: '⚠️他の2曲と違い頭出しで調整できる余裕のイントロが無い。0秒（曲の先頭）から鳴らすと、トーク後半とTSUNAMIの歌声が重なる可能性が高い。'
+      + '対処: (a)【既定案】サウンドの音量をかなり絞り「トークの下でかすかに歌が聞こえる」程度に留めて0秒から頭出し（オリジナル=トーク音声を優先） '
+      + '(b)投稿時にトークをさらに切り詰める (c)この回だけサウンド追加を見送り曲名テロップのみにする。必ずアプリで試聴のうえ判断を——他2本より難度が高い回です',
+  },
+  42: { // 硝子の少年（KinKi Kids）
+    talkSec: 14.4,
+    vocalStart: '約25〜30秒目（ピアノ主体の前奏15秒＋サビメロディーを辿るメインイントロ・情感のある展開・短い静止を経て歌い出し「あっ、めっ、がぁ」に入る、との複数ソース記述。前奏が2段階あるため合計秒数は構造からの推定で一次資料なし）',
+    cueOffset: '約11〜16秒目（25〜30−14.4）から頭出し。ピアノ前奏の途中〜メインイントロ開始あたり。他の2曲よりイントロの見立ての不確実性が高いため特に試聴確認を',
+  },
+};
+
+/**
+ * 型D固有の「投稿前に直さないと事故る」警告（campaignルーティング等・id keyed）。
+ * 2026-08-20: #41 TSUNAMIは redial/lib/site.ts の TEASER_CAMPAIGN_SEGMENTS に
+ * '2000-spring-d' の登録が無いため、着地後の試聴セグメントが桜坂（既定seg2）に
+ * フォールバックしてしまう（本来はTSUNAMI=seg3）。redialリポジトリ側の1行追記が必須。
+ */
+const SONGTAIL_ROUTING_WARNINGS = {
+  41: '⚠️⚠️ **投稿前に redial リポジトリで要修正**: `lib/site.ts` の `TEASER_CAMPAIGN_SEGMENTS` に '
+    + '`"2000-spring-d": 3,` が未登録（2026-08-20時点）。このまま投稿すると着地ページの試聴セグメントが'
+    + '既定の桜坂（seg2）にフォールバックし、動画が約束した「続きはTSUNAMI」と違う曲が流れます。'
+    + 'timeslip-dj からは編集できない（別リポジトリ）ため、投稿前に redial 側セッションで1行追記してデプロイすること。'
+    + '（ついでに一報: `-d` サフィックスは UTM_CONVENTION_2026-07.md が既に「型D＝体験デモ（make-demo-short.mjs・'
+    + 'Shortsフィード非掲載）」の意味で定義済み。今回の型D「トーク→曲」＝Shortsフィードに投稿する別物と'
+    + 'サフィックスが衝突している。実害は無いが集計時の可読性のため要確認。）',
+};
+
+/** 型D固有のキット文面（IG注意＋アプリでのサウンド追加手順・SHORTS_RECIPE §2-k/§2-k′） */
+function songTailBlock(j) {
+  if (!j.songTail) return '';
+  const note = SONGTAIL_VOCAL_NOTES[j.id];
+  const routingWarning = SONGTAIL_ROUTING_WARNINGS[j.id];
+  return `
+**⚠️ 型D「トーク→曲」— mp4に曲は入っていません（曲区間${j.songTail.seconds}秒は無音）**
+${routingWarning ? `\n${routingWarning}\n` : ''}
+この動画はYouTubeアプリの「サウンドを追加」機能で**投稿時に曲を重ねて初めて完成**します（SHORTS_RECIPE §2-k′）。
+
+- ナウプレイング札（動画内に焼き込み済み・確認用）: \`${j.songTail.nowPlaying}\`
+- ボーカルの入り（目安・実音源未確認のためアプリで要確認）: ${note?.vocalStart ?? '（要確認）'}
+- トーク実測: ${note?.talkSec ?? '—'}秒
+- 頭出し位置の目安: ${note?.cueOffset ?? '（要確認）'}
+
+**YouTubeアプリでの手順（PCのStudioではできません）**:
+1. 投稿済みの動画を開く（またはアップロード画面）→ ギャラリーから選択
+2. 「サウンドを追加」→ 曲を検索（アプリ内で検索に出るか要確認。0本表示でもライブラリにはあることがある＝可否の最終判定はアプリ内検索）
+3. 頭出し（上記の目安位置までスクラブ）→ 実際に耳で聴いて「トーク終了の直後にボーカルが来る」位置に微調整
+4. 音量ミックス（オリジナル=トーク音声を優先／サウンド=曲は耳で判断し「イントロが聞こえる程度」に）
+5. タイトル・説明・関連動画を設定 → 22:00に予約投稿
+
+**⚠️ Instagram には出さない**（無音区間のあるmp4はIGに不向き・SHORTS_RECIPE §2-k′）。3晩とも**在庫の別弾（トーク版）**をIGへ。**X**: 通常どおり140字＋動画添付可。
+`;
+}
 const anchorsM = readJson(path.resolve('data', 'anchors.manifest.json'));
 const freeAnchor = (anchorsM.anchors ?? []).find((a) => a.free) ?? null;
 // 関連動画の既定 = **その週の中尺**（SNS_NIGHT_RITUAL A-2・2026-08-17〜）。中尺は説明欄のURLが押せるので
@@ -99,8 +168,8 @@ for (const { j } of metas) {
   blocks.push(`
 ---
 
-## #${j.id} ${j.hook}（${j.cell}・${j.window?.dur ? Math.round(j.window.dur) + '秒' : ''}）${j.song ? `— **型B 曲予告**「${j.song}」` : j.walkingFlame ? '— **型C 走馬灯**（年ダイヤルのデモ）' : '— 型A 題材'} ／ 客層: ${j.audience ?? '—'}
-
+## #${j.id} ${j.hook}（${j.cell}・${j.window?.dur ? Math.round(j.window.dur) + '秒' : ''}）${j.songTail ? `— **型D トーク→曲**「${j.song}」` : j.song ? `— **型B 曲予告**「${j.song}」` : j.walkingFlame ? '— **型C 走馬灯**（年ダイヤルのデモ）' : '— 型A 題材'} ／ 客層: ${j.audience ?? '—'}
+${songTailBlock(j)}
 **動画ファイル**
 \`\`\`
 ${exists ? mp4 : '⚠️ mp4 が見つかりません（' + mp4 + '）'}
@@ -116,10 +185,12 @@ ${j.title}
 ${buildDescription({ cell: j.cell, title: j.title, utm: j.utm, song: j.song, walkingFlame: j.walkingFlame, tags: j.topicTags, campaign: j.campaign, hashtagYear: j.hashtagYear })}
 \`\`\`
 
-**キャプション（Instagram Reels）**（同じmp4をそのまま使える。UTMだけ instagram に差し替わっている）
+${j.songTail
+    ? `**キャプション（Instagram Reels）**: ⚠️ **この動画はIGに出さない**（無音区間のあるmp4はIG不向き・上記参照）。3晩とも在庫の別弾（トーク版）をIGへ。`
+    : `**キャプション（Instagram Reels）**（同じmp4をそのまま使える。UTMだけ instagram に差し替わっている）
 \`\`\`
 ${buildDescription({ cell: j.cell, title: j.title, song: j.song, walkingFlame: j.walkingFlame, platform: 'instagram', tags: j.topicTags, campaign: j.campaign, hashtagYear: j.hashtagYear })}
-\`\`\`
+\`\`\``}
 
 **関連動画**（YouTubeのみ・この動画にリンクする長尺）
 \`\`\`

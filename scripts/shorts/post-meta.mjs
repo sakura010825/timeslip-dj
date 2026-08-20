@@ -127,6 +127,9 @@ export function writeMeta({ job, win, winClips, segmentName, mp3Path, outMp4 }) 
     // 型B判定に使う（アップロード・キットが型の表示とUTMの識別子に使う）
     song: job.song ?? null,
     walkingFlame: !!job.walkingFlame,
+    // 型D（トーク→曲・2026-08-20・SHORTS_RECIPE §2-k′）。make-shorts-upload-kit.mjs が
+    // ナウプレイング札の文言をキットに転記するために読む（seconds はmp4を焼き直さず確認したい時用）。
+    songTail: job.songTail ?? null,
     hashtags: tags,
     // 題材タグの原本。キット再生成（make-shorts-upload-kit.mjs）が mp4 を焼き直さずに
     // 説明文を作り直せるよう、組み立て済みの hashtags とは別に生の指定を残す

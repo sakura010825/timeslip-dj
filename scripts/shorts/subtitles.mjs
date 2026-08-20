@@ -207,6 +207,33 @@ function wrapJa(s, max = MAX_LINE) {
  *     サムネで切れる＝「見える札」の目的が死ぬ。書き直してもらう）
  * 戻り値は { text, lines }。
  */
+/**
+ * ナウプレイング札（2026-08-20・SHORTS_RECIPE §2-k′・型D「トーク→曲」）。
+ *
+ * 型Dは mp4 に曲を焼き込まない（曲はYouTubeアプリの「サウンドを追加」で投稿後に乗せる）。
+ * トーク終了後、無音の曲区間（songTailSec 秒）に入ったことを示すため、下段（字幕と同じ
+ * 位置＝トーク中は字幕、曲区間はこちらに入れ替わるので同じゾーンを再利用できる）に
+ * 「♪ 曲名 — アーティスト（年）」を全区間表示する。見出し札（上段）は §2-k′ の
+ * 「札L全尺」に従いエンドカードに切り替わる直前まで表示を継続する（buildAss 側で処理）。
+ * `*語*` は見出し札と同じ琥珀強調（曲名を1語だけ目立たせる）。
+ */
+// NowPlaying style は fs54・使用幅936px（72,72マージン）。EM_RATIO 0.689（check-overflow.mjs実測）
+// で 936/(54*0.689)≈25.2字。安全側で24（タイトルカードのfs54/使用幅900pxで23を使う先例と同じ考え方）。
+function buildNowPlayingText(nowPlaying, max = 24) {
+  const raw = String(nowPlaying ?? '').replace(/\r\n/g, '\n').trim();
+  if (!raw) return null;
+  const lines = raw.includes('\n')
+    ? raw.split('\n').map((l) => l.trim()).filter(Boolean)
+    : wrapJa(raw.replace(/\*/g, ''), max).split('\\N');
+  const painted = lines.map((l) => {
+    const esc = assEscape(l);
+    const n = (esc.match(/\*/g) ?? []).length;
+    if (n < 2) return esc.replace(/\*/g, '');
+    return esc.replace(/\*([^*]+)\*/g, `{\\c${CARD_AMBER}}$1{\\c${CARD_CREAM}}`).replace(/\*/g, '');
+  });
+  return painted.join('\\N');
+}
+
 export function buildCardText(card, size = 'M') {
   const raw = String(card ?? '').replace(/\r\n/g, '\n').trim();
   if (!raw) return null;
@@ -332,13 +359,21 @@ function applyFixes(text, fixes) {
  * clips = [{ segments, win }, ...]。型A/型Bは1要素、型C（走馬灯）は複数。
  * 断片ごとに時刻を先頭からの通算へ寄せて1本の字幕トラックにする。
  */
-export function buildAss({ assPath, clips, year, season, title, topic, subsOverride, endcardSec, djName, songCard, walkingFlame, fixes, card, cardFont, cardSize }) {
+export function buildAss({ assPath, clips, year, season, title, topic, subsOverride, endcardSec, djName, songCard, walkingFlame, fixes, card, cardFont, cardSize, songTailSec, nowPlaying }) {
   const dur = clips.reduce((s, c) => s + c.win.dur, 0);
   const total = dur + endcardSec;
   const seasonJP = SEASON_JP[season] ?? '';
   const cardBuilt = buildCardText(card, cardSize);
   // 書体の存在確認は card があるときだけ（無い旧レンダは HG が無いPCでも通す）
   const cf = cardBuilt ? resolveCardFont(cardFont, cardSize) : { ...CARD_FONTS.noto, fs: 130 };
+  // 型D（トーク→曲・2026-08-20）: endcardSec は「トーク後の無音区間 S」全体（呼び出し側=
+  // make-short.mjs が job.songTail.seconds を渡す）。見出し札は「最後10秒」の直前まで
+  // 表示を続け（＝札L全尺・SHORTS_RECIPE §2-k′）、最後10秒だけエンドカードに入れ替わる。
+  // 型D以外（songTailSec 未指定）は従来どおり cardEnd=dur（トーク終了と同時に入れ替わる）。
+  const SONGTAIL_ENDCARD_SEC = 10;
+  const hasSongTail = songTailSec != null;
+  const cardEnd = hasSongTail ? Math.max(dur, total - SONGTAIL_ENDCARD_SEC) : dur;
+  const nowPlayingBuilt = hasSongTail ? buildNowPlayingText(nowPlaying) : null;
 
   let subEvents;
   if (subsOverride) {
@@ -387,6 +422,11 @@ export function buildAss({ assPath, clips, year, season, title, topic, subsOverr
     // 2行でも y≈400〜780 に収まり、字幕との間に約230pxの余白が残る。
     // 縁取り＋影 2: 背景写真は本ごとに明るさが違い、Ken Burns で動く。明るい箇所でも生成りが沈まないため。
     `Style: Card,${cf.family},${cf.fs},${CARD_CREAM.slice(0, -1)},&H00000000,&H001A140C,&H90000000,${cf.bold},0,0,0,100,100,0,0,1,${cf.outline},2,8,60,60,400,1`,
+    // ナウプレイング札（2026-08-20・型D §2-k′）。下段＝字幕(Sub)と同じゾーン（72,72,760）を再利用。
+    // トーク中は Sub が、曲区間（無音）はこちらがこの位置を占める＝時間的に排他なので安全に共用できる
+    // （下端760は2026-08-17実測でYouTube UIとの間に余白がある確認済みの安全マージン）。
+    // 見出し札と同じ生成り＋琥珀（`*曲名*`）語彙で「同じ番組の一部」と分かる見た目にする。
+    'Style: NowPlaying,Noto Serif JP,54,&H00D3EAF3,&H00000000,&H001A140C,&H90000000,1,0,0,0,100,100,0,0,1,3,2,2,72,72,760,1',
   ];
 
   const events = [];
@@ -446,25 +486,33 @@ export function buildAss({ assPath, clips, year, season, title, topic, subsOverr
     const one = `♪ ここで「${assEscape(song)}」が流れます`;
     return dispLen(one) <= 19 ? one : `♪ ここで「${assEscape(song)}」が\\N流れます`;
   };
-  const endcard = songCard
-    ? `${songLine(songCard)}${CTA}`
-    : walkingFlame
-      ? `${wrapJa(`ぜんぶ、${year}年の${seasonJP}です。`, 19)}\\N{\\fs40\\c&H00C8C8C8&}あなたの${seasonJP}は、何年ですか。${CTA}`
-      : `♪ この続きに、あの頃の曲が流れます${CTA}`;
+  // 型D（トーク→曲）: 曲はアプリでこの後乗る（mp4は無音）ので、旧来の
+  // 「ここで『◯◯』が流れます」（=これから鳴る、という予告）は時制が合わない
+  // （曲区間ではすでに鳴っている想定＝ナウプレイング札が担う）。SHORTS_RECIPE §2-k
+  // の指定文言「この続きはredial.jp」の趣旨で、フルエピソードが聴けることを伝える。
+  const endcard = hasSongTail
+    ? `♪ この続きも、まるごと聴けます${CTA}`
+    : songCard
+      ? `${songLine(songCard)}${CTA}`
+      : walkingFlame
+        ? `${wrapJa(`ぜんぶ、${year}年の${seasonJP}です。`, 19)}\\N{\\fs40\\c&H00C8C8C8&}あなたの${seasonJP}は、何年ですか。${CTA}`
+        : `♪ この続きに、あの頃の曲が流れます${CTA}`;
   // 見出し札がある弾は、エンドカードを**札と同じ上段（y=400〜）**に出す（2026-08-18）。
-  // 札は dur で消えるので、同じ場所に宛先が入れ替わる＝視線を動かさない。画面中央（従来の位置）は
+  // 札は cardEnd で消えるので、同じ場所に宛先が入れ替わる＝視線を動かさない。画面中央（従来の位置）は
   // 背景の焦点（#36 ではドームの屋根と入口の灯り）と重なって読めなかった（フレーム実測）。
-  // 札の無い旧レンダは従来どおり中央。
+  // 札の無い旧レンダは従来どおり中央。型D（hasSongTail）は cardEnd=total-10（§2-k′「最後10秒」）。
   events.push(cardBuilt
-    ? `Dialogue: 0,${assTime(dur)},${assTime(total)},Endcard,,0,0,400,,{\\an8}${endcard}`
+    ? `Dialogue: 0,${assTime(cardEnd)},${assTime(total)},Endcard,,0,0,400,,{\\an8}${endcard}`
     : `Dialogue: 0,${assTime(dur)},${assTime(total)},Endcard,,0,0,0,,${endcard}`);
   if (cardBuilt) {
-    // 見出し札（全尺）。名乗りは札の下に小さく常設＝「番組名つきのコーナータイトル」として一体で見せる
+    // 見出し札（型Dは §2-k′「札L全尺」＝エンドカードに切り替わる直前=cardEndまで表示を継続。
+    // 型D以外は cardEnd=dur なので従来どおりトーク終了と同時に切り替わる）。
+    // 名乗りは札の下に小さく常設＝「番組名つきのコーナータイトル」として一体で見せる
     // （旧カードでは3.6秒で消えていた。フィードで見える番組表示は名乗りだけ＝2026-08-17）。
     // 名乗りは書体をNotoに戻す（HG明朝Eの小さい字は潰れる）。色は字幕と同じ白＋縁取り3.4:
     // 灰色（B8B0A0）だと明るい面（#36 ドームの屋根）で沈んだ（2026-08-18 フレーム実測）。
     const djLine = djName ? `\\N{\\fnNoto Serif JP\\b0\\fs${cf.dj}\\bord3.4\\shad2\\c&H00F4F4F4&}${assEscape(djName)}` : '';
-    events.push(`Dialogue: 0,${assTime(0)},${assTime(dur)},Card,,0,0,0,,${cardBuilt.text}${djLine}`);
+    events.push(`Dialogue: 0,${assTime(0)},${assTime(cardEnd)},Card,,0,0,0,,${cardBuilt.text}${djLine}`);
   } else if (title) {
     // 冒頭に「何の話か」を平易に提示＋シンヤ名乗りで「これは深夜DJラジオ」という正体を毎回運ぶ。
     const djLine = djName ? `\\N{\\fs32\\c&H00B0B0B0&}${assEscape(djName)}` : '';
@@ -474,6 +522,13 @@ export function buildAss({ assPath, clips, year, season, title, topic, subsOverr
     // 位置 1140 → 1300（2026-08-17）: 字幕を MarginV 760 まで上げたので、
     // 冒頭3.6秒はタイトルカードと字幕が同時に出る。カードも上げて重なりを避ける。
     events.push(`Dialogue: 0,${assTime(0)},${assTime(Math.min(3.6, dur))},Endcard,,0,0,1300,,{\\fs54\\c&H00F0F0F0&}${cardText}${djLine}`);
+  }
+
+  // ナウプレイング札（型D・2026-08-20）: トーク終了(dur)〜末尾(total)の無音区間、下段に全区間表示。
+  // Sub（字幕）は 0..dur にしか無いので同じゾーンを時間的に排他で共用できる（style定義側コメント参照）。
+  if (nowPlayingBuilt) {
+    // 「♪」は manifest の songTail.nowPlaying 側で明示する（card と同様、装飾はコード側で自動付与しない）。
+    events.push(`Dialogue: 0,${assTime(dur)},${assTime(total)},NowPlaying,,0,0,0,,${nowPlayingBuilt}`);
   }
 
   const ass = [

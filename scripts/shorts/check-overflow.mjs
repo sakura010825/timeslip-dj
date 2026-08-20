@@ -24,6 +24,8 @@ const STYLE = {
   // 既定の Sub(fs56/使用幅936) にフォールバックしていたので、実際の Cta(fs40/使用幅960)
   // より厳しい判定にはなっていたが、スタイルを変えた瞬間に検査が嘘をつく状態だった。
   Cta: { fs: 40, ml: 60, mr: 60 },
+  // ナウプレイング札（型D・2026-08-20・subtitles.mjs の NowPlaying スタイルと対応）。
+  NowPlaying: { fs: 54, ml: 72, mr: 72 },
 };
 
 const dir = process.argv[2] ?? path.join('output', 'shorts');

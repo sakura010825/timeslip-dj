@@ -77,6 +77,9 @@ function buildJobsFromManifest(manifestPath) {
       tags: s.tags ?? null,
       // 型C（走馬灯）: 複数断片の宣言と、問いで閉じるエンドカードの切替
       clips: s.clips ?? null, walkingFlame: !!s.walkingFlame,
+      // 型D（トーク→曲・2026-08-20・SHORTS_RECIPE §2-k′）: トーク後に無音＋ナウプレイング札を
+      // 連結する。{ seconds: 曲区間Sの秒数(25〜30), nowPlaying: "♪ 曲名 — アーティスト（年）" }
+      songTail: s.songTail ?? null,
       // バッジ2行目（常設の題材表示）。hook は型Bだと「愛は勝つ予告」のように**曲名を含む**ので、
       // そのまま出すとクリフハンガーが冒頭から割れる（2026-07-22 フレーム確認で捕捉）。
       // 型Bは topic を明示した本だけ2行目を出す。
@@ -216,7 +219,12 @@ async function processJob(job) {
   // URLを読み切る時間が要る（hide試写: 行き先を持ち帰れないと導線が成立しない）
   // 2026-07-24: エンドカードが3行（情緒／CTA「左下のアカウントから」／屋号）になったため
   // 各型 +0.6〜0.8秒。40〜60代が3行を読み切る間を確保する。
-  const endcardSec = job.song ? 3.4 : job.walkingFlame ? 4.0 : 3.0;
+  // 型D（トーク→曲・2026-08-20）: endcardSec は「トーク後の無音区間 S 全体」（songTail.seconds・
+  // 25〜30秒）を渡す。buildAss/renderShort はどちらも total=dur+endcardSec を使って背景ループ・
+  // 音声パディング（apad）の長さを決めるだけなので、この1本を差し替えるだけで済む
+  // （render.mjs は無改造＝apad が既にどんな長さの無音末尾にも対応できる。SHORTS_RECIPE §2-k′）。
+  const endcardSec = job.songTail ? Number(job.songTail.seconds)
+    : job.song ? 3.4 : job.walkingFlame ? 4.0 : 3.0;
   buildAss({
     assPath,
     // words も渡す＝窓の端にまたがるセグメントを「実際に鳴っている語」だけに刈り込むため
@@ -234,6 +242,8 @@ async function processJob(job) {
     card: job.card,
     cardFont: job.cardFont,
     cardSize: job.cardSize,
+    songTailSec: job.songTail ? Number(job.songTail.seconds) : null,
+    nowPlaying: job.songTail ? job.songTail.nowPlaying : null,
   });
 
   await renderShort({
