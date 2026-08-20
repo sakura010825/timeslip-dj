@@ -159,3 +159,17 @@ A tall vertical 9:16 cinematic photograph, Japan, a night in March 1990. Looking
 ```
 A tall vertical 9:16 cinematic photograph from high in the dark stands of a huge domed arena at night, 1990. Far below, a distant stage glows with warm white and amber lights and a soft haze; the vast dark audience is only a faint texture of tiny lights, no faces. The dome's white roof curves overhead, faintly lit. Grand, hushed, the moment before the first song. No text, no logos, no faces, no watermark. Muted palette, deep shadows, lower third dark. Photorealistic, film grain, vertical 1080x1920.
 ```
+
+---
+
+## school-gate-spring.png ／ 卒業（1985春・#39・hide生成 2026-08-20）
+
+hideさんが ChatGPT で生成（`ChatGPT Image 2026年8月20日 10_21_10.png`・941x1672＝dome-outside-night と同形式）。
+校門・桜吹雪・花びらの積もった路面・フィルム調の春の夕方。**門柱の「卒業式」看板の文字はhide生成・承認済みの例外**
+（商標・ブランドではなく情景の一般語。本プロンプト集の「文字を入れない」原則は商標・著作物回避が目的）。
+
+生成プロンプト（採用時のClaude提案ベース・hideがChatGPTで実行）:
+```
+1985年の日本の高校、卒業式の日の夕方。桜の花びらが舞う校門を少し離れて見た構図。人物なし。
+フィルム写真のような質感、ノスタルジック、縦長（9:16）
+```
