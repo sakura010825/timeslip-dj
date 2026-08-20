@@ -207,6 +207,10 @@ export const PRONUNCIATION_DICT: PronunciationEntry[] = [
   { pattern: /がつ三日/g, replacement: 'がつ・みっか', note: '3日の読み（月をかな化した後に効く）' },
   { pattern: /がつ二日/g, replacement: 'がつ・ふつか', note: '2日の読み（月をかな化した後に効く）' },
   { pattern: /がつ一日/g, replacement: 'がつ・ついたち', note: '1日の読み（月をかな化した後に効く）' },
+  // 2026-08-20 hideさん実聴報告（公開済みエピソードの誤読3件）
+  { pattern: '木梨憲武', replacement: 'きなし・のりたけ', note: 'とんねるず木梨憲武。誤読報告（hideさん実聴・1988秋）' },
+  { pattern: '男闘呼組', replacement: 'おとこぐみ', note: 'ジャニーズ男闘呼組。「おとていぐみ」系に崩れた（hideさん実聴・1988秋）' },
+  { pattern: '桑田佳祐', replacement: 'くわた・けいすけ', note: 'サザン桑田佳祐。誤読報告（hideさん実聴・2000春/1990夏いずれか）' },
 ];
 
 /**
