@@ -39,9 +39,28 @@ const MAX_LINE = 32; // fs44 × 使用幅1600px（1920 − 160×2）≒ 36字。
 const SITE = 'redial.jp';
 
 // カードの尺
-const TITLE_CARD_SEC = 4.0; // 冒頭（年・季節＋名乗り）
+const TITLE_CARD_SEC = 5.0; // 冒頭（見出し札＋名乗り）
 const SONG_CARD_SEC = 3.5; // セグメント間（曲のあった場所）
 const END_CARD_SEC = 6.0; // 末尾（曲＋サイト＋明日の予告）
+
+/**
+ * 冒頭の見出し札（2026-08-28・hide指摘から）。
+ *
+ * これまで中尺の頭は Noto fs58 の「1995年・夏 深夜ラジオ」だけで、**ショートで実証した
+ * 「見える札」の機構がまるごと抜けていた**。#36 ポールは音声そのままで札を付けただけで
+ * 視聴継続 10.8% → 45.0%（歴代1位）になっている。同じレバーをこの面でも使う。
+ *
+ * 寸法は 9:16 の値をそのまま持ってこられない（あちらは 1080×1920）。16:9 は横に広く縦が浅いので:
+ *   - 使用幅 = 1920 − 160×2 = 1600px。HG系は 1字 ≒ fs px なので **9字 × fs155 = 1395px（使用幅の87%）**
+ *   - 3行 × 155 = 465px（画面高の43%）。名乗りの小さい行を足しても収まる
+ * 色と `*語*`＝琥珀1語 の作法はショートと共通（生成り #F3EAD3 / 琥珀 #F2B441）。
+ *
+ * ⚠️ libass は無い書体を**黙って別の書体に置き換える**ので、存在確認して無ければ止める。
+ */
+const HEADLINE = { max: 9, lines: 3, fs: 155, hold: 4.0 };
+const HEADLINE_FONT = { family: 'HG明朝E', file: 'C:/Windows/Fonts/HGRME.TTC' };
+const HEADLINE_CREAM = '&H00D3EAF3&'; // #F3EAD3（ASSはBGR順）
+const HEADLINE_AMBER = '&H0041B4F2&'; // #F2B441 ダイヤルの灯り
 
 const OUT_DIR = path.resolve(process.cwd(), 'output', 'midform');
 const SEASON_JP = { spring: '春', summer: '夏', autumn: '秋', winter: '冬' };
@@ -242,7 +261,45 @@ const styles = [
   'Style: Badge,Noto Serif JP,30,&H00C8C8C8,&H00C8C8C8,&H96000000,&H00000000,0,0,0,0,100,100,2,0,1,2.0,0,7,90,90,70,1',
   // カード（中央）
   'Style: Card,Noto Serif JP,58,&H00F0F0F0,&H00F0F0F0,&H96000000,&H00000000,0,0,0,0,100,100,1,0,1,2.6,0,5,160,160,0,1',
+  // 冒頭の見出し札（中央・極太明朝・アウトライン5＝ショートと同じ作法）
+  `Style: Headline,${HEADLINE_FONT.family},${HEADLINE.fs},${HEADLINE_CREAM},${HEADLINE_CREAM},&H96000000,&H00000000,0,0,0,0,100,100,2,0,1,5,0,5,160,160,0,1`,
 ];
+
+/**
+ * 見出し札のテキストを組む。`*語*` で囲んだ1語だけ琥珀（ショートと共通の作法）。
+ * 行数・字数が超えたら**落とさずに止める**——黙って画面外に出るのがいちばん悪い。
+ */
+function buildHeadline(raw) {
+  const lines = String(raw).replace(/\r\n/g, '\n').split('\n').map((l) => l.trim()).filter(Boolean);
+  const problems = [];
+  if (lines.length > HEADLINE.lines) problems.push(`${lines.length}行（上限${HEADLINE.lines}行）`);
+  for (const l of lines) {
+    const w = dispLen(l.replace(/\*/g, ''));
+    if (w > HEADLINE.max) problems.push(`「${l.replace(/\*/g, '')}」が${w}字（上限${HEADLINE.max}字）`);
+  }
+  if (problems.length) {
+    throw new Error(
+      `見出し札が収まりません: ${problems.join('／')}\n` +
+        `   → manifest の headline を ${HEADLINE.lines}行×各${HEADLINE.max}字以内に（改行は \\n で明示）`,
+    );
+  }
+  if (process.platform === 'win32' && !fs.existsSync(HEADLINE_FONT.file)) {
+    throw new Error(
+      `見出し札の書体「${HEADLINE_FONT.family}」がこのPCにありません（${HEADLINE_FONT.file}）\n` +
+        `   → libassは無い書体を黙って別の書体に置き換えるので、ここで止めています`,
+    );
+  }
+  return lines
+    .map((l) => {
+      const esc = assEscape(l);
+      if ((esc.match(/\*/g) ?? []).length < 2) return esc.replace(/\*/g, '');
+      return esc
+        .replace(/\*([^*]+)\*/g, `{\\c${HEADLINE_AMBER}}$1{\\c${HEADLINE_CREAM}}`)
+        .replace(/\*/g, '');
+    })
+    .join('\\N');
+}
+const headlineText = item.headline ? buildHeadline(item.headline) : null;
 
 const events = [];
 // 年バッジは全編出す（どの季節の回かを常に示す）
@@ -251,10 +308,24 @@ events.push(`Dialogue: 0,${assTime(0)},${assTime(TOTAL)},Badge,,0,0,0,,${assEsca
 // カード
 for (const c of timeline) {
   if (c.kind === 'title') {
-    const body =
-      `${assEscape(item.cardTitle ?? `${year}年・${seasonJP} 深夜ラジオ`)}` +
-      `\\N{\\fs34\\c&H00B0B0B0&}毎晩22時の深夜ラジオ・シンヤ`;
-    events.push(`Dialogue: 0,${assTime(c.start)},${assTime(c.end)},Card,,0,0,0,,${body}`);
+    // 見出し札があればそれを大きく出し、音声の頭に少し重ねて保持する（HEADLINE.hold）。
+    // 重ねるのは、セグメント丸ごと使う都合で**1行目が前の曲の受け（「〜でした」）になる**ため。
+    // 検索から来た人が最初に聞くのがその一言なので、その間は札で場所を示す。
+    if (item.headline) {
+      const sub = assEscape(item.cardTitle ?? `${year}年・${seasonJP} 深夜ラジオ`);
+      // ⚠️ 空きを入れずに直付けすると、副題の上端が札の最終行の**下端（な・だ・った の払い）に
+      //    食い込む**（2026-08-28 フレーム実測で発覚）。fs48 の空行を1つ挟んで逃がす。
+      const body =
+        `${headlineText}\\N{\\fs48} \\N{\\fs52\\c&H00B0B0B0&}${sub}　毎晩22時・シンヤ`;
+      events.push(
+        `Dialogue: 0,${assTime(c.start)},${assTime(c.end + HEADLINE.hold)},Headline,,0,0,0,,${body}`,
+      );
+    } else {
+      const body =
+        `${assEscape(item.cardTitle ?? `${year}年・${seasonJP} 深夜ラジオ`)}` +
+        `\\N{\\fs34\\c&H00B0B0B0&}毎晩22時の深夜ラジオ・シンヤ`;
+      events.push(`Dialogue: 0,${assTime(c.start)},${assTime(c.end)},Card,,0,0,0,,${body}`);
+    }
   } else if (c.kind === 'song') {
     const body =
       `${wrap(`♪ ここで「${assEscape(c.song ?? '')}」が流れます`, 22).join('\\N')}` +
