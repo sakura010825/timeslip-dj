@@ -534,6 +534,7 @@ const meta = {
   segs: item.segs,
   campaign: item.campaign,
   title: item.title,
+  tags: item.tags ?? undefined, // YouTube のタグ（検索の受け皿・合計500字まで）
   durationSec: TOTAL,
   songs: parts.map((p) => ({ song: p.song, artist: p.artist })),
   description: desc,
