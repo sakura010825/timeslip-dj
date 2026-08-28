@@ -277,6 +277,12 @@ for (const c of timeline) {
  */
 const SPLIT_EVENT = 34;
 let subCount = 0;
+// 焼き込みと同じ文字列・同じ時刻で .srt も出す（2026-08-28）。
+// 目的は視聴体験ではなく**検索**: YouTubeは字幕テキストをインデックスに入れるので、
+// 4〜5分ぶんの固有名詞をまとめて読ませられる。ショートには無い中尺だけの面。
+// ⚠️ 焼き込み字幕があるのでCCを入れると二重になるが、既定はオフ。
+//    わざわざCCを入れる人に合わせて焼き込みを外すことはしない（2026-08-28 hide判断）。
+const srtCues = [];
 for (const p of parts) {
   for (const s of p.segments) {
     const text = applyFixes(s.text ?? '', item.fixes);
@@ -304,10 +310,12 @@ for (const p of parts) {
       const mid = start + (end - start) * (dispLen(a) / total);
       events.push(`Dialogue: 0,${assTime(start)},${assTime(mid)},Sub,,0,0,0,,${wrap(a).map(assEscape).join('\\N')}`);
       events.push(`Dialogue: 0,${assTime(mid)},${assTime(end)},Sub,,0,0,0,,${wrap(b).map(assEscape).join('\\N')}`);
+      srtCues.push({ start, end: mid, text: a }, { start: mid, end, text: b });
       subCount += 2;
       continue;
     }
     events.push(`Dialogue: 0,${assTime(start)},${assTime(end)},Sub,,0,0,0,,${wrap(text).map(assEscape).join('\\N')}`);
+    srtCues.push({ start, end, text });
     subCount++;
   }
 }
@@ -429,16 +437,24 @@ await runFfmpeg([
 // ── 投稿メタ ──────────────────────────────────────────────────────
 const linkBase = `https://redial.jp/episodes/${item.cell}`;
 const utm = manifest.utm ?? { source: 'youtube', medium: 'midform' };
+// 説明欄（2026-08-28 改訂）。中尺はショートと違い**検索の受け皿**にできる面なので、
+// 固有名詞をできるだけ多く載せる。実測（`npm run yt` の「4b. 検索語」）では検索流入の61%が
+// 1〜2回ずつの長い尾＝**大きな語で勝つのではなく、載っている固有名詞の総量で拾う**構造だった。
+//   - 1行目は**タイトルの繰り返しをやめ**、掴みの一文にする（検索スニペットに出るのはここ）
+//   - `topics`（この回に出てくるもの）と `hashtags` を manifest から載せる
+const hookLine = item.hook1Line ?? `${item.cardTitle} の回です。`;
 const desc = [
-  item.title,
+  hookLine,
   '',
   `🎧 この夜の続き——トークのあとに、当時の名曲がまるごと流れます。フル版（無料）は redial.jp から。`,
   `${linkBase}?utm_source=${utm.source}&utm_medium=${utm.medium}&utm_campaign=${item.campaign}`,
   '',
   'この回で流れる曲（サイトではまるごと流れます）:',
   ...parts.map((p) => `・${p.song ?? ''}${p.artist ? ` / ${p.artist}` : ''}`),
+  ...(item.topics?.length ? ['', 'この回に出てくるもの:', ...item.topics.map((t) => `・${t}`)] : []),
   '',
   '毎晩22時、どこかの季節を流しています。',
+  ...(item.hashtags?.length ? ['', item.hashtags.map((h) => `#${h}`).join(' ')] : []),
 ].join('\n');
 
 const meta = {
@@ -453,6 +469,21 @@ const meta = {
   landing: `${linkBase}?utm_source=${utm.source}&utm_medium=${utm.medium}&utm_campaign=${item.campaign}`,
 };
 fs.writeFileSync(path.resolve(OUT_DIR, `${base}.json`), JSON.stringify(meta, null, 2) + '\n', 'utf8');
+
+// 字幕ファイル（YouTube に上げて検索インデックスに載せる）
+const srtTime = (s) => {
+  const ms = Math.max(0, Math.round(s * 1000));
+  const h = String(Math.floor(ms / 3600000)).padStart(2, '0');
+  const m = String(Math.floor((ms % 3600000) / 60000)).padStart(2, '0');
+  const sec = String(Math.floor((ms % 60000) / 1000)).padStart(2, '0');
+  return `${h}:${m}:${sec},${String(ms % 1000).padStart(3, '0')}`;
+};
+const srtPath = path.resolve(OUT_DIR, `${base}.srt`);
+fs.writeFileSync(
+  srtPath,
+  srtCues.map((c, i) => `${i + 1}\n${srtTime(c.start)} --> ${srtTime(c.end)}\n${c.text}\n`).join('\n'),
+  'utf8',
+);
 try {
   fs.unlinkSync(assPath);
 } catch {
