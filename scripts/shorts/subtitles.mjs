@@ -307,6 +307,14 @@ function segmentsToEvents(segments, t0, t1, words, fixes) {
       const joined = applyFixes(inWin.map((w) => w.word).join(''), fixes);
       if (joined.trim()) text = joined;
     }
+    // 🔴 fixes は**必ず**掛ける（2026-08-31 修正）。
+    //   以前は上の if（窓を跨ぐセグメントの刈り込み）の中でしか applyFixes を呼んでおらず、
+    //   **窓の内側に完全に収まるセグメントは fixes が素通り**していた。
+    //   #60（1994冬・野茂英雄）で「トルネード東宝」→「投法」の fix が効かず発覚。
+    //   ⚠️ 発覚が遅れたのは、Whisper の segment.text と word トークンで表記が違うことがあり
+    //     （同じ音声で seg.text=「慣行」/ words=「観光」）、直ったように見える回があったため。
+    //   境界セグメントには二重に掛かるが、literal 置換なので冪等（結果は変わらない）。
+    text = applyFixes(text, fixes);
     const phrases = toPhrases(text);
     if (!phrases.length) continue;
     base.push({ start: s, end: e, phrases });
