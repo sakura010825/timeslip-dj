@@ -111,10 +111,14 @@ function greedy(toks, max) {
  * （2026-08-17 の1本目で「バー/コフ」が割れて発覚）。
  */
 function toPhrases(t) {
+  // 🔴 空白は「切れ目」だが**捨ててはいけない**（2026-09-08）。
+  // 直前の語に空白を残したまま返し、連結時に元の字面が復元されるようにする。
+  // 捨てていたため、英字タイトル中の空白まで消えて「go for it!」が
+  // 「gofor」/「it!」に潰れた（中尺#3の曲カードで発覚）。
+  // LOVE LOVE LOVE・Tomorrow never knows など、空白を含む曲名すべてが同じ壊れ方をする。
   return t
-    .split(/(?<=[、。])(?![」』）\]｝、。・])|\s+/)
-    .map((p) => (p ?? '').trim())
-    .filter(Boolean);
+    .split(/(?<=[、。])(?![」』）\]｝、。・])|(?<=\s)/)
+    .filter((p) => (p ?? '').trim() !== '');
 }
 
 /** 読点・句点・空白の句切りを優先して折る（語の途中で切らない）。make-postcard.mjs と同型。 */
@@ -123,11 +127,16 @@ function wrap(s, max = MAX_LINE) {
   if (!t || dispLen(t) <= max) return [t];
   const lines = [];
   let cur = '';
+  // toPhrases が空白を語に残すようになったので、行に積むときだけ端の空白を落とす
+  const push = (s) => {
+    const v = (s ?? '').trim();
+    if (v) lines.push(v);
+  };
   const phrases = toPhrases(t);
   for (const ph of phrases) {
     if (dispLen(ph) > max) {
       if (cur) {
-        lines.push(cur);
+        push(cur);
         cur = '';
       }
       const toks = tokenize(ph);
@@ -137,16 +146,16 @@ function wrap(s, max = MAX_LINE) {
         const balanced = greedy(toks, Math.ceil(dispLen(ph) / n));
         if (balanced.length === n) sub = balanced;
       }
-      lines.push(...sub);
+      sub.forEach(push);
       continue;
     }
-    if (cur && dispLen(cur) + dispLen(ph) > max) {
-      lines.push(cur);
+    if (cur && dispLen(cur.trim()) + dispLen(ph) > max) {
+      push(cur);
       cur = '';
     }
     cur += ph;
   }
-  if (cur) lines.push(cur);
+  push(cur);
   return lines;
 }
 
@@ -214,7 +223,9 @@ const parts = item.segs.map((idx) => {
     mp3,
     label: seg.segmentLabel ?? seg.segmentName,
     dur: Number(seg.estimatedDurationSec ?? 0),
-    song: seg.songAfter?.title ?? null,
+    // カードに出す曲名。両A面などで曲名が長すぎるとカードが2行に割れて読みにくいので、
+    // manifest の songLabels で「カードに出す短い名前」に差し替えられる（曲そのものは変えない）。
+    song: item.songLabels?.[seg.songAfter?.title ?? ''] ?? seg.songAfter?.title ?? null,
     artist: seg.songAfter?.artist ?? null,
     segments: w.segments ?? [],
   };
@@ -328,12 +339,18 @@ for (const c of timeline) {
     }
   } else if (c.kind === 'song') {
     const body =
-      `${wrap(`♪ ここで「${assEscape(c.song ?? '')}」が流れます`, 22).join('\\N')}` +
+      // 26字（旧22）。22だと「♪」だけが単独行に落ちる曲名があり、実際に中尺#3の
+      // エンドカード（好きにならずにいられない＝23.5字）で発生した。フレーム実測で
+      // 1行21字＝910px/1920px しか使っておらず、26字でも約1120pxで余裕がある（2026-09-08）。
+      `${wrap(`♪ ここで「${assEscape(c.song ?? '')}」が流れます`, 26).join('\\N')}` +
       `\\N{\\fs38\\c&H00D0D0D0&}フル版（無料）は ${SITE}`;
     events.push(`Dialogue: 0,${assTime(c.start)},${assTime(c.end)},Card,,0,0,0,,${body}`);
   } else {
     const body =
-      `${wrap(`♪ ここで「${assEscape(c.song ?? '')}」が流れます`, 22).join('\\N')}` +
+      // 26字（旧22）。22だと「♪」だけが単独行に落ちる曲名があり、実際に中尺#3の
+      // エンドカード（好きにならずにいられない＝23.5字）で発生した。フレーム実測で
+      // 1行21字＝910px/1920px しか使っておらず、26字でも約1120pxで余裕がある（2026-09-08）。
+      `${wrap(`♪ ここで「${assEscape(c.song ?? '')}」が流れます`, 26).join('\\N')}` +
       `\\N{\\fs44\\c&H00FFFFFF&}フル版（無料）は ${SITE}` +
       `\\N{\\fs32\\c&H00B0B0B0&}明日の22時も、どこかの季節を。`;
     events.push(`Dialogue: 0,${assTime(c.start)},${assTime(c.end)},Card,,0,0,0,,${body}`);
