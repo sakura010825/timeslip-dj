@@ -18,6 +18,9 @@
  *   node --env-file=.env.local scripts/make-midform.mjs --id 1 --dry-run
  *   node --env-file=.env.local scripts/make-midform.mjs --id 1
  *
+ *   公開済みの回に字幕だけ後から付けるとき（動画は作らない）:
+ *   node --env-file=.env.local scripts/make-midform.mjs --id 1 --srt-only --title-card-sec=4
+ *
  * 出力: output/midform/{cell}-{hook}.mp4 ＋ 同名 .json（投稿メタ）
  *
  * 前提: 各セグメントの Whisper 結果が output/shorts/.cache/{cell}-seg{N}.words.json にあること
@@ -30,6 +33,11 @@ import { parseArgs, FONTS_DIR, BG_DIR, CACHE_ROOT, STOCK_ROOT } from './shorts/u
 
 const args = parseArgs(process.argv.slice(2));
 const DRY = !!args['dry-run'];
+// 公開済みの回に、字幕だけ後から付けるための逃げ道（2026-09-10）。
+// #1 は .srt を出す機構（8/28）より前にレンダしたので、字幕トラックだけ無かった。
+// mp4 は作らない（公開済みの動画は差し替えない）。.json も書かない
+// ——アップロード後に videoId / url / publishedAt が足されているので、上書きすると消える。
+const SRT_ONLY = !!args['srt-only'];
 
 // ── 画面（16:9） ──────────────────────────────────────────────────
 const W = 1920;
@@ -39,7 +47,10 @@ const MAX_LINE = 32; // fs44 × 使用幅1600px（1920 − 160×2）≒ 36字。
 const SITE = 'redial.jp';
 
 // カードの尺
-const TITLE_CARD_SEC = 5.0; // 冒頭（見出し札＋名乗り）
+// 🔴 2026-08-28 に 4.0 → 5.0 へ変えた（冒頭の見出し札を足したぶん）。それより前に
+//    レンダした回の .srt を後から起こすときは --title-card-sec=4 で当時の尺に戻すこと。
+//    ここが1秒ずれると、以降の字幕が丸ごと1秒ずれる（#1 で踏みかけた）。
+const TITLE_CARD_SEC = Number(args['title-card-sec'] ?? 5.0); // 冒頭（見出し札＋名乗り）
 const SONG_CARD_SEC = 3.5; // セグメント間（曲のあった場所）
 const END_CARD_SEC = 6.0; // 末尾（曲＋サイト＋明日の予告）
 
@@ -489,6 +500,9 @@ const filter = [
 ].join(';');
 
 const outMp4 = path.resolve(OUT_DIR, `${base}.mp4`);
+if (SRT_ONLY) {
+  console.log('\n   （--srt-only・動画は作りません。.srt だけ書き出します）');
+} else {
 console.log('\n   レンダ中…（4〜5分の動画なので1〜3分かかります）');
 await runFfmpeg([
   '-y',
@@ -521,6 +535,7 @@ await runFfmpeg([
   '+faststart',
   outMp4,
 ]);
+}
 
 // ── 投稿メタ ──────────────────────────────────────────────────────
 const linkBase = `https://redial.jp/episodes/${item.cell}`;
@@ -557,7 +572,9 @@ const meta = {
   description: desc,
   landing: `${linkBase}?utm_source=${utm.source}&utm_medium=${utm.medium}&utm_campaign=${item.campaign}`,
 };
-fs.writeFileSync(path.resolve(OUT_DIR, `${base}.json`), JSON.stringify(meta, null, 2) + '\n', 'utf8');
+if (!SRT_ONLY) {
+  fs.writeFileSync(path.resolve(OUT_DIR, `${base}.json`), JSON.stringify(meta, null, 2) + '\n', 'utf8');
+}
 
 // 字幕ファイル（YouTube に上げて検索インデックスに載せる）
 const srtTime = (s) => {
