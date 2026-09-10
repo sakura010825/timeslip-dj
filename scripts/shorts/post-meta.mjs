@@ -59,8 +59,13 @@ export function hashtagsFor(cell, topicTags, hashtagYear) {
   const year = hashtagYear ? String(hashtagYear) : cell.split('-')[0];
   const decadeKey = year.slice(0, 3);
   const base = [`${year}年`, DECADE_TAG[decadeKey]].filter(Boolean);
-  const topics = (topicTags ?? []).filter(Boolean);
-  return topics.length ? [...base, ...topics] : [...base, GENERIC_TAG[decadeKey] ?? '懐かしい'];
+  // 🔴 重複を落とす（2026-09-10）。manifest の tags に年を書くと「#1987年 … #1987年」と
+  //    二度出ていた（#78 光GENJI の公開済み説明欄で確認）。
+  //    ハッシュタグの「・」はほとんどの面でそこが区切りになって後半が落ちるので続けて書く
+  //    （クリスマス・イブ → #クリスマスイブ）。表示上の題名は触らない。
+  const topics = (topicTags ?? []).filter(Boolean).map((t) => String(t).replace(/[・･]/g, ''));
+  const all = topics.length ? [...base, ...topics] : [...base, GENERIC_TAG[decadeKey] ?? '懐かしい'];
+  return [...new Set(all)];
 }
 
 /**
