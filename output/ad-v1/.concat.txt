@@ -1,0 +1,5 @@
+file 'C:/Users/user/dev/timeslip-dj/output/ad-v1/.seg-black1.mp4'
+file 'C:/Users/user/dev/timeslip-dj/output/ad-v1/.seg-room.mp4'
+file 'C:/Users/user/dev/timeslip-dj/output/ad-v1/.seg-siteFv.mp4'
+file 'C:/Users/user/dev/timeslip-dj/output/ad-v1/.seg-siteTrack.mp4'
+file 'C:/Users/user/dev/timeslip-dj/output/ad-v1/.seg-black2.mp4'
