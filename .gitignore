@@ -77,3 +77,7 @@ assets/shorts/backgrounds/*.jpg
 # ただし長尺アンカーの共通背景だけは例外＝公開動画3本の見た目を決める資産で、
 # Geminiは同じ絵を二度と出さない。原本と作り方は redial/SNS/README.md（2026-07-16）
 !assets/shorts/backgrounds/radio-booth-night.png
+
+# 生成物（mp4/mp3/画像）は git に入れない（2026-09-16: ad-v1・trailer・demo-short が
+# 誤って追跡されていたのを外した。output/shorts だけ除外されていて他が漏れていた）
+output/
