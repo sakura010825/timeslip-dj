@@ -126,6 +126,13 @@ function tokenizeJa(s) {
       let j = i; let run = '';
       while (j < src.length && isKata(src[j])) { run += src[j]; j++; }
       if (dispLen(run) <= MAX_LINE) { toks.push(run); i = j - 1; continue; }
+      // 2026-09-24: 1行に収まらない長いカタカナ語（曲名など）は、1字ずつに戻す前に中黒で区切った塊にする。
+      //   1字ずつだと『グ／レイテスト・ラブ・オブ・オール』のように語の頭で割れた（#113 ホイットニー）。
+      //   中黒の後ろで折れば「グレイテスト・ラブ・オブ・／オール」＝語の途中では割れない。
+      if (run.includes('・')) {
+        const parts = run.split(/(?<=・)/);
+        if (parts.every((p) => dispLen(p) <= MAX_LINE)) { toks.push(...parts); i = j - 1; continue; }
+      }
       toks.push(ch); continue;
     }
     if (OPEN[ch]) {
