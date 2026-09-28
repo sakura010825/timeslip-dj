@@ -86,6 +86,8 @@ function buildJobsFromManifest(manifestPath) {
       topic: s.topic ?? (s.song ? null : s.hook),
       // 型Bは曲名の直前で切るため、本ごとに余白の微調整が要る（既定は song 指定時 0）
       padStart: s.padStart ?? null, padEnd: s.padEnd ?? null,
+      // 波形で決めた切れ目（秒）。Whisper の語の時刻が無音を吸い込んで伸びるときだけ書く（resolve.mjs）
+      startAt: s.startAt ?? null, endAt: s.endAt ?? null,
       djName: args['no-dj'] ? null : (args.dj ? String(args.dj) : manifestDj),
       utm: m.utm,
       // 見出し札（2026-08-18・SHORTS_RECIPE §2-j）: 2行×各10字以内。題名とは別に書く。
@@ -100,7 +102,9 @@ function buildJobsFromManifest(manifestPath) {
 
 async function processJob(job) {
   // 型C（走馬灯）はエピソード各所の断片を並べるので窓が複数になる。型A/型Bは1つ。
-  const parts = (job.clips && job.clips.length) ? job.clips : [{ seg: job.seg, start: job.start, end: job.end }];
+  const parts = (job.clips && job.clips.length)
+    ? job.clips
+    : [{ seg: job.seg, start: job.start, end: job.end, startAt: job.startAt ?? null, endAt: job.endAt ?? null }];
   const tag = `#${job.id} ${job.cell} ${parts.length > 1 ? parts.length + '断片' : 'seg' + parts[0].seg}`;
 
   const clips = [];
@@ -126,6 +130,7 @@ async function processJob(job) {
 
     const win = resolveWindow({
       data, startAnchor: part.start, endAnchor: part.end, padStart, padEnd, segDurationSec: audioDur,
+      startAt: part.startAt ?? null, endAt: part.endAt ?? null,
     });
 
     if (!win.ok) {
@@ -255,7 +260,8 @@ async function processJob(job) {
     // 断片ごとの窓も残す。型C（走馬灯）は窓が複数あるため、まとめた window だけでは
     // start > end という無意味な値になり（1993秋=34.03→22.54）、窓を読む検査が型Cを
     // 素通りしていた（check-window-tail.mjs, 2026-07-30）。
-    winClips: clips.map((c) => ({ seg: c.seg, start: c.win.t0, end: c.win.t1, dur: c.win.dur })),
+    // forced＝波形で決めた切れ目（startAt/endAt）。語の時刻では跨いで見えても実音は無音＝検査は飛ばす
+    winClips: clips.map((c) => ({ seg: c.seg, start: c.win.t0, end: c.win.t1, dur: c.win.dur, forced: c.win.forced ?? null })),
     segmentName: parts.map((p) => 'seg' + p.seg).join('+'), mp3Path: clips[0].mp3Path, outMp4 });
   console.log(`   ✓ ${path.relative(process.cwd(), outMp4)}`);
   return { ok: true, job, clips };

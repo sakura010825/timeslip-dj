@@ -4,6 +4,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import OpenAI from 'openai';
 import {
   STOCK_ROOT, CACHE_ROOT, ensureDir, readJson, normalizeForCompare,
@@ -24,7 +25,23 @@ export function locateSegAudio(slug, segIndex) {
   if (!fs.existsSync(mp3Path)) {
     throw new Error(`seg音声が見つかりません: ${mp3Path}`);
   }
-  return { segmentName: seg.segmentName, mp3Path, durationSec: seg.estimatedDurationSec ?? null };
+  // 窓の上限は実音声の長さで持つ（2026-09-28）。estimatedDurationSec は生成時の概算で短く、
+  // 呼び側が代わりに使う「Whisper の最後の語の end」も実音より早い（1994冬 seg3: 語の end 50.50／実音 50.69）。
+  // セグメント末尾まで切る型Bでは、最後の「〜です」が全体のフェードアウト（0.3秒）に掛かって細くなっていた。
+  const realSec = probeDurationSec(mp3Path);
+  const durationSec = Math.max(seg.estimatedDurationSec ?? 0, realSec ?? 0) || null;
+  return { segmentName: seg.segmentName, mp3Path, durationSec };
+}
+
+/** ffprobe で音声の実尺（秒）。取れなければ null（呼び側は従来どおり概算と Whisper で持つ） */
+function probeDurationSec(file) {
+  try {
+    const out = execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file], { encoding: 'utf8' });
+    const v = Number(String(out).trim());
+    return Number.isFinite(v) && v > 0 ? v : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Whisper verbose_json (word timestamps) を取得。キャッシュ優先。 */
@@ -125,7 +142,7 @@ export function findAnchorTime(data, anchor) {
  * start/end アンカーから切り出し窓を解決する。
  * words が薄い場合は segments（文節）境界でフォールバック。
  */
-export function resolveWindow({ data, startAnchor, endAnchor, padStart, padEnd, segDurationSec }) {
+export function resolveWindow({ data, startAnchor, endAnchor, padStart, padEnd, segDurationSec, startAt = null, endAt = null }) {
   const words = data.words ?? [];
   const useWords = words.length >= 4;
 
@@ -176,13 +193,25 @@ export function resolveWindow({ data, startAnchor, endAnchor, padStart, padEnd, 
     }
   }
 
+  // 波形で決めた切れ目（2026-09-28・第9バッチ）。Whisper の語の時刻は前後の無音を語に吸い込んで
+  //   伸びることがあり（実例: 「…はずです」の終わりが実音より0.35秒遅い）、上の隣語クランプがその
+  //   伸びた時刻で止まって、次の語の頭を0.05〜0.07秒削っていた。アンカーの一致は従来どおり確かめた上で、
+  //   manifest の startAt / endAt（秒・セグメント音声の先頭から）があれば、その位置で切る。
+  //   値は波形（50ms刻みの RMS）で無音と確かめたところに置くこと。書かなければ従来どおり。
+  if (startAt != null) t0 = Math.max(0, Number(startAt));
+  if (endAt != null) t1 = Number(endAt);
+
   if (segDurationSec) t1 = Math.min(t1, segDurationSec);
+  if (t1 <= t0) {
+    return { ok: false, startScore, endScore, startText: startM?.matchedText ?? '', endText: endM?.matchedText ?? '', t0, t1 };
+  }
 
   return {
     ok: true,
     t0: +t0.toFixed(3),
     t1: +t1.toFixed(3),
     dur: +(t1 - t0).toFixed(3),
+    forced: { start: startAt != null, end: endAt != null },
     startScore,
     endScore,
     startText: startM?.matchedText ?? '',

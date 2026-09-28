@@ -35,7 +35,7 @@ for (const f of files) {
   // winClips が正。型C（走馬灯）は窓が複数あり、まとめた window は start > end という
   // 無意味な値になる（1993秋 = 34.03→22.54）ので、window だけを見ると型Cを素通りする。
   const wins = Array.isArray(j.winClips) && j.winClips.length
-    ? j.winClips.map((c) => ({ seg: c.seg, t0: c.start, t1: c.end }))
+    ? j.winClips.map((c) => ({ seg: c.seg, t0: c.start, t1: c.end, forced: c.forced ?? null }))
     : j.window ? [{ seg: j.seg, t0: j.window.start, t1: j.window.end }] : [];
 
   for (const w of wins) {
@@ -47,6 +47,9 @@ for (const f of files) {
     checked++;
 
     for (const [edge, t] of [['冒頭', w.t0], ['末尾', w.t1]]) {
+      // 波形で決めた切れ目（manifest の startAt/endAt・2026-09-28）は、語の時刻が無音を吸い込んで
+      // 伸びているから指定したもの＝語の時刻で比べると必ず「跨いでいる」と出る。実音で確かめ済みなので飛ばす
+      if ((edge === '冒頭' && w.forced?.start) || (edge === '末尾' && w.forced?.end)) continue;
       const cut = words.find((x) => x.start < t - EPS && x.end > t + EPS);
       if (!cut) continue;
       const inside = words.filter((x) => x.start >= w.t0 - EPS && x.end <= w.t1 + EPS);

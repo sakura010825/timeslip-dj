@@ -35,7 +35,9 @@ for (const id of ids) {
   const s = (manifest.shorts ?? []).find((x) => x.id === id);
   if (!s) { console.log(`#${id} はマニフェストにありません`); continue; }
 
-  const parts = (s.clips && s.clips.length) ? s.clips : [{ seg: s.seg, start: s.start, end: s.end }];
+  const parts = (s.clips && s.clips.length)
+    ? s.clips
+    : [{ seg: s.seg, start: s.start, end: s.end, startAt: s.startAt ?? null, endAt: s.endAt ?? null }];
   const clips = [];
   for (const part of parts) {
     const { mp3Path, durationSec } = locateSegAudio(s.cell, part.seg);
@@ -46,6 +48,7 @@ for (const id of ids) {
     const win = resolveWindow({
       data, startAnchor: part.start, endAnchor: part.end, padStart, padEnd,
       segDurationSec: Math.max(durationSec ?? 0, whisperEnd),
+      startAt: part.startAt ?? null, endAt: part.endAt ?? null,
     });
     if (!win.ok) { console.log(`#${id} 窓解決に失敗`); break; }
     clips.push({ segments: data.segments, words: data.words, win });
