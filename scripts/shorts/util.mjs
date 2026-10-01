@@ -7,7 +7,12 @@ import fs from 'node:fs';
 
 export const CWD = process.cwd();
 export const REDIAL_ROOT = path.resolve(CWD, '..', 'redial');
-export const STOCK_ROOT = path.resolve(REDIAL_ROOT, 'data', 'stock');
+// 2026-10-01: 本編に無い話をショート用に新しく読み上げた音声（新作）は、サイトの在庫（redial/data/stock）を
+//   汚さないよう別の置き場（data/short-stock/<cell>/）に置き、SHORTS_STOCK_ROOT で切り替えて読む。
+//   セグメント番号は本編（0〜4）と重ならない 10 以降にする＝Whisper のキャッシュ名（<cell>-seg<N>）がぶつからない。
+export const STOCK_ROOT = process.env.SHORTS_STOCK_ROOT
+  ? path.resolve(process.env.SHORTS_STOCK_ROOT)
+  : path.resolve(REDIAL_ROOT, 'data', 'stock');
 export const OUT_ROOT = path.resolve(CWD, 'output', 'shorts');
 export const CACHE_ROOT = path.resolve(OUT_ROOT, '.cache');
 export const FONTS_DIR = path.resolve(CWD, 'assets', 'shorts', 'fonts');
