@@ -72,7 +72,7 @@ export function hashtagsFor(cell, topicTags, hashtagYear) {
  * 説明欄本文。**mp4 を焼き直さずに作り直せる**ように writeMeta から切り出してある
  * （URL規約が変わっても make-shorts-upload-kit.mjs の再実行だけで反映できる）。
  */
-export function buildDescription({ cell, title, utm, song, walkingFlame, platform, tags: topicTags, campaign, hashtagYear }) {
+export function buildDescription({ cell, title, utm, song, walkingFlame, platform, tags: topicTags, campaign, hashtagYear, descLead }) {
   const year = cell.split('-')[0];
   const tags = hashtagsFor(cell, topicTags, hashtagYear);
   return [
@@ -94,7 +94,10 @@ export function buildDescription({ cell, title, utm, song, walkingFlame, platfor
     // （チャンネル訪問者にReDialの喜び＝トークが本物の曲に流れ込む瞬間、がどこにも
     // 見えていない問題・hide指摘）。**曲が「そのまま／まるごと流れる」ことを1行目で言う**。
     // サイト側は「最初のひと晩」（登録=その夜1本まるごと解放）が入ったので約束は果たせる。
-    song
+    // 2026-10-01: 新作（本編に無い話）は manifest の descLead で1行目を差し替える。
+    descLead
+      ? descLead
+      : song
       ? `🎧 この続きは redial.jp で——このトークのあとに、『${song}』がまるごと流れます。`
       : `🎧 このトークの続きに、当時の名曲がそのまま流れます。フルエピソード（無料）は redial.jp から。`,
     // IG だけ「プロフィールのリンク」を添える（2026-08-13）。IG で唯一ワンタップで押せる導線が
@@ -112,7 +115,7 @@ export function buildDescription({ cell, title, utm, song, walkingFlame, platfor
 export function writeMeta({ job, win, winClips, segmentName, mp3Path, outMp4 }) {
   const tags = hashtagsFor(job.cell, job.tags, job.hashtagYear);
   const utm = job.utm ?? { source: 'youtube', medium: 'short' };
-  const description = buildDescription({ cell: job.cell, title: job.title, utm, song: job.song, walkingFlame: job.walkingFlame, tags: job.tags, campaign: job.campaign, hashtagYear: job.hashtagYear });
+  const description = buildDescription({ cell: job.cell, title: job.title, utm, song: job.song, walkingFlame: job.walkingFlame, tags: job.tags, campaign: job.campaign, hashtagYear: job.hashtagYear, descLead: job.descLead });
 
   const meta = {
     id: job.id,

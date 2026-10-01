@@ -1,0 +1,15 @@
+{
+  "slug": "1999-winter",
+  "format": "short-only-new-audio",
+  "note": "2026-10-01 第10バッチの新作（本編に無い話をショート用に新しく読み上げた音声）。サイトの在庫ではない。make-short は SHORTS_STOCK_ROOT=data/short-stock で読む。",
+  "segments": [
+    {
+      "segmentIndex": 10,
+      "segmentName": "new-lovemachine",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-10-01T01:41:08.258Z"
+    }
+  ]
+}

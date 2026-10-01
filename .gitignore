@@ -81,3 +81,7 @@ assets/shorts/backgrounds/*.jpg
 # 生成物（mp4/mp3/画像）は git に入れない（2026-09-16: ad-v1・trailer・demo-short が
 # 誤って追跡されていたのを外した。output/shorts だけ除外されていて他が漏れていた）
 output/
+
+# 2026-10-01: ショート用の新作の音声（data/short-stock/<cell>/segments/*.mp3）も生成物なので入れない。
+#   読み上げの原稿（scripts/*.tts.txt）と stock.json は入れる＝いつでも作り直せる（TTS は毎回少し違う）。
+data/short-stock/**/segments/*.mp3

@@ -73,6 +73,9 @@ function buildJobsFromManifest(manifestPath) {
       //   TEASER_SEGMENTS で春よ、来い(seg3)が再生され、動画が約束した「続き」と違う曲が流れる。
       //   URL規約と受け皿の配線は campaign 文字列の一致だけが頼り（UTM_CONVENTION §追記）。
       campaign: s.campaign ?? null,
+      // 2026-10-01: 説明欄の1行目（🎧…）の差し替え。本編に無い話を新しく読み上げた新作は
+      //   「このトークの続きに名曲が流れる」が当てはまらないので、回の案内に言い換える。
+      descLead: s.descLead ?? null,
       // 題材のハッシュタグ（本ごと）。一般語の大タグは効かないので題材固有を持たせる
       tags: s.tags ?? null,
       // 型C（走馬灯）: 複数断片の宣言と、問いで閉じるエンドカードの切替
