@@ -385,6 +385,11 @@ export const PRONUNCIATION_DICT: PronunciationEntry[] = [
   { pattern: /馬飼野康二(?![一-龠々])/g, replacement: 'まかいの・こうじ', note: 'KB人名・9/17一括（Wikipedia/コトバンクで確認）' },
   { pattern: /麻生圭子(?![一-龠々])/g, replacement: 'あそう・けいこ', note: 'KB人名・9/17一括（Wikipedia/コトバンクで確認）' },
   { pattern: /貴乃花(?![一-龠々])/g, replacement: 'たかのはな', note: 'KB人名・9/17一括（Wikipedia/コトバンクで確認）' },
+  // 2026-10-05 1990夏 seg1（7/6 生成＝上の礼宮文仁親王より前）で確認された誤読。hide が聴き比べで指摘・gpt-4o-transcribe/whisper-1 のかな書きで確認
+  // 順番に注意: フルネームの礼宮文仁親王（上）を先に置換したあとで、単独の表記を拾う
+  { pattern: '賢所', replacement: 'かしこどころ', note: '宮中三殿の賢所。「けんしょ」と誤読（1990夏 seg1・2026-10-05）' },
+  { pattern: '礼宮', replacement: 'あやのみや', note: '単独表記の保険。「れいみや」と誤読（1990夏 seg1・2026-10-05）' },
+  { pattern: '文仁親王', replacement: 'ふみひと・しんのう', note: '単独表記の保険。「ふみにん…」と誤読（1990夏 seg1・2026-10-05）' },
 ];
 
 /**
