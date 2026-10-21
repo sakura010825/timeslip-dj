@@ -10,6 +10,14 @@
       "ttsModel": "gpt-4o-mini-tts-2025-12-15",
       "ttsVoice": "onyx",
       "generatedAt": "2026-10-05T01:31:55.154Z"
+    },
+    {
+      "segmentIndex": 11,
+      "segmentName": "new-ryorinotetsujin",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-10-21T00:18:37.460Z"
     }
   ]
 }

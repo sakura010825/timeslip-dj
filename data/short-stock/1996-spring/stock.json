@@ -5,11 +5,11 @@
   "segments": [
     {
       "segmentIndex": 10,
-      "segmentName": "new-longvacation",
+      "segmentName": "new-sobakasu",
       "segmentLabel": "新作",
       "ttsModel": "gpt-4o-mini-tts-2025-12-15",
       "ttsVoice": "onyx",
-      "generatedAt": "2026-10-01T01:41:08.235Z"
+      "generatedAt": "2026-10-21T00:11:43.368Z"
     }
   ]
 }
