@@ -18,6 +18,22 @@
       "ttsModel": "gpt-4o-mini-tts-2025-12-15",
       "ttsVoice": "onyx",
       "generatedAt": "2026-10-21T00:07:15.885Z"
+    },
+    {
+      "segmentIndex": 12,
+      "segmentName": "new-hanekoma",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-10-23T00:00:36.588Z"
+    },
+    {
+      "segmentIndex": 13,
+      "segmentName": "new-aoistation",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-10-22T23:58:43.108Z"
     }
   ]
 }

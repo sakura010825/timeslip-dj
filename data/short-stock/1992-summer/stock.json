@@ -18,6 +18,14 @@
       "ttsModel": "gpt-4o-mini-tts-2025-12-15",
       "ttsVoice": "onyx",
       "generatedAt": "2026-10-21T00:12:21.040Z"
+    },
+    {
+      "segmentIndex": 12,
+      "segmentName": "new-youretheonly",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-10-22T23:55:10.186Z"
     }
   ]
 }

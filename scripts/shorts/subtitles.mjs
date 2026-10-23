@@ -90,12 +90,14 @@ const visLen = (s) => normalizeForCompare(s).length;
 /** segment.text → フレーズ配列（空白＝間、読点直後で分割・単語は割らない）
  *  ⚠️ 句点の直後に閉じ括弧が続く「…なさい。」と書いた」のような並びで機械的に割ると、
  *     「」」だけが次行の先頭に取り残される（2026-07-17 1995春で露見）。閉じ括弧・読点が
- *     続く場合は割らない（禁則）。 */
+ *     続く場合は割らない（禁則）。
+ *  2026-10-23: 英字どうしの間の空白（THE YELLOW MONKEY・LOVE SONG・Hello, Again）は間として割らない。
+ *     割ると空白が消えて「THEYELLOWMONKEY」「KissMe」と詰まって出た（第13バッチの JUDYANDMARY・TMNETWORK）。 */
 function toPhrases(text) {
   return (text ?? '')
     .trim()
     .replace(/^[、。」』）・\s]+/, '')
-    .split(/\s+/)
+    .split(/\s+(?![A-Za-z0-9'’&])|(?<![A-Za-z0-9'’&!?.,…])\s+/)
     .flatMap((p) => p.split(/(?<=[、。])(?![」』）\]｝、。・])/))
     .map((p) => p.trim())
     .filter(Boolean);
@@ -120,6 +122,8 @@ function tokenizeJa(s) {
   for (let i = 0; i < src.length; i++) {
     const ch = src[i];
     if (/[0-9A-Za-z]/.test(ch)) { buf += ch; continue; }
+    // 2026-10-23: 英字の名前の中の記号と空白（KNOCKIN' ON・Hello, Again・THE YELLOW MONKEY）は同じ塊のまま（間で割らない・空白も残す）
+    if (buf && /[ '’&,.!?]/.test(ch) && /[0-9A-Za-z'’ ]/.test(src[i + 1] ?? '')) { buf += ch; continue; }
     if (isKata(ch)) {
       // カタカナ連続をまとめる（直前が半角英数バッファならそちらは先に閉じる）
       flush();

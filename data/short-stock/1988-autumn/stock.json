@@ -10,6 +10,14 @@
       "ttsModel": "gpt-4o-mini-tts-2025-12-15",
       "ttsVoice": "onyx",
       "generatedAt": "2026-10-21T00:08:31.833Z"
+    },
+    {
+      "segmentIndex": 11,
+      "segmentName": "new-kinpachi3",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-10-23T00:01:15.261Z"
     }
   ]
 }

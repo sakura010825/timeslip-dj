@@ -10,6 +10,22 @@
       "ttsModel": "gpt-4o-mini-tts-2025-12-15",
       "ttsVoice": "onyx",
       "generatedAt": "2026-10-20T23:58:37.576Z"
+    },
+    {
+      "segmentIndex": 11,
+      "segmentName": "new-taiheiki",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-10-22T23:48:21.648Z"
+    },
+    {
+      "segmentIndex": 12,
+      "segmentName": "new-eyestome",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-10-22T23:58:06.287Z"
     }
   ]
 }

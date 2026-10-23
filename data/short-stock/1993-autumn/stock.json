@@ -18,6 +18,14 @@
       "ttsModel": "gpt-4o-mini-tts-2025-12-15",
       "ttsVoice": "onyx",
       "generatedAt": "2026-10-21T00:18:37.460Z"
+    },
+    {
+      "segmentIndex": 12,
+      "segmentName": "new-kazenifukarete",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-10-23T00:05:47.241Z"
     }
   ]
 }

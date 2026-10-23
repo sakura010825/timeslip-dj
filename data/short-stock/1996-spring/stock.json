@@ -10,6 +10,14 @@
       "ttsModel": "gpt-4o-mini-tts-2025-12-15",
       "ttsVoice": "onyx",
       "generatedAt": "2026-10-21T00:11:43.368Z"
+    },
+    {
+      "segmentIndex": 11,
+      "segmentName": "new-lalala",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-10-22T23:47:40.585Z"
     }
   ]
 }
