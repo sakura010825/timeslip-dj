@@ -18,6 +18,14 @@
       "ttsModel": "gpt-4o-mini-tts-2025-12-15",
       "ttsVoice": "onyx",
       "generatedAt": "2026-10-23T00:03:38.681Z"
+    },
+    {
+      "segmentIndex": 12,
+      "segmentName": "new-koishikute",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-10-26T08:07:31.239Z"
     }
   ]
 }

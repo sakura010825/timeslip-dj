@@ -18,6 +18,14 @@
       "ttsModel": "gpt-4o-mini-tts-2025-12-15",
       "ttsVoice": "onyx",
       "generatedAt": "2026-10-21T00:15:01.874Z"
+    },
+    {
+      "segmentIndex": 12,
+      "segmentName": "new-merryxmas",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-10-26T08:17:44.053Z"
     }
   ]
 }

@@ -10,6 +10,14 @@
       "ttsModel": "gpt-4o-mini-tts-2025-12-15",
       "ttsVoice": "onyx",
       "generatedAt": "2026-10-21T00:01:22.080Z"
+    },
+    {
+      "segmentIndex": 11,
+      "segmentName": "new-shiroixmas",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-10-26T08:05:28.313Z"
     }
   ]
 }

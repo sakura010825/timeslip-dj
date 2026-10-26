@@ -34,6 +34,14 @@
       "ttsModel": "gpt-4o-mini-tts-2025-12-15",
       "ttsVoice": "onyx",
       "generatedAt": "2026-10-22T23:58:43.108Z"
+    },
+    {
+      "segmentIndex": 14,
+      "segmentName": "new-kimiwa1000",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-10-26T08:12:32.619Z"
     }
   ]
 }

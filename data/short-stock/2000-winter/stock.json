@@ -10,6 +10,14 @@
       "ttsModel": "gpt-4o-mini-tts-2025-12-15",
       "ttsVoice": "onyx",
       "generatedAt": "2026-10-22T23:53:53.963Z"
+    },
+    {
+      "segmentIndex": 11,
+      "segmentName": "new-eienni",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-10-26T08:34:14.667Z"
     }
   ]
 }

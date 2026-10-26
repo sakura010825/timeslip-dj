@@ -18,6 +18,14 @@
       "ttsModel": "gpt-4o-mini-tts-2025-12-15",
       "ttsVoice": "onyx",
       "generatedAt": "2026-10-23T00:01:58.190Z"
+    },
+    {
+      "segmentIndex": 12,
+      "segmentName": "new-kimidakeni",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-10-26T08:15:24.199Z"
     }
   ]
 }

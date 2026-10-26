@@ -26,6 +26,14 @@
       "ttsModel": "gpt-4o-mini-tts-2025-12-15",
       "ttsVoice": "onyx",
       "generatedAt": "2026-10-23T00:11:07.711Z"
+    },
+    {
+      "segmentIndex": 13,
+      "segmentName": "new-countryroad",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-10-26T08:27:35.490Z"
     }
   ]
 }

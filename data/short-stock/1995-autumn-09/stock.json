@@ -18,6 +18,38 @@
       "ttsModel": "gpt-4o-mini-tts-2025-12-15",
       "ttsVoice": "onyx",
       "generatedAt": "2026-10-22T23:53:20.656Z"
+    },
+    {
+      "segmentIndex": 12,
+      "segmentName": "new-heartyparty",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-10-26T08:29:52.117Z"
+    },
+    {
+      "segmentIndex": 13,
+      "segmentName": "new-musicforthepeople",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-10-26T08:30:31.991Z"
+    },
+    {
+      "segmentIndex": 14,
+      "segmentName": "new-yumemiru",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-10-26T08:26:20.906Z"
+    },
+    {
+      "segmentIndex": 15,
+      "segmentName": "new-gattsudaze",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-10-26T08:31:32.714Z"
     }
   ]
 }

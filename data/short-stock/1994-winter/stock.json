@@ -18,6 +18,14 @@
       "ttsModel": "gpt-4o-mini-tts-2025-12-15",
       "ttsVoice": "onyx",
       "generatedAt": "2026-10-22T23:57:24.143Z"
+    },
+    {
+      "segmentIndex": 12,
+      "segmentName": "new-meguriai",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-10-26T08:13:44.051Z"
     }
   ]
 }
