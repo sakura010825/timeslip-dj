@@ -8,7 +8,12 @@
  *  - 段落境界: 元テキストの空行を「段落境界」フラグとして保持（concat時に長めの間を入れる）
  */
 
-const TARGET_MAX_CHARS = 150;
+/**
+ * 1チャンクの上限字数。既定 150。新しい声 F（Gemini）は「1日100回まで」の上限がある（2026-10-28 実測・
+ * GenerateRequestsPerDayPerProjectPerModel=100）ので、TTS_CHUNK_MAX_CHARS=300 で呼ぶ回数を減らす
+ * （聴き比べも300字を1回で読ませて読みは崩れなかった）。
+ */
+const TARGET_MAX_CHARS = Number(process.env.TTS_CHUNK_MAX_CHARS ?? 150) || 150;
 const MIN_CHARS = 30;
 
 export type Chunk = {

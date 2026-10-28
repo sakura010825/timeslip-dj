@@ -18,10 +18,21 @@ import { TTS_BITRATE_KBPS, estimateMp3Seconds } from './tts-audio-format';
 
 const openai = new OpenAI();
 
-const TTS_PARALLELISM = 3;
+/**
+ * 同時に読ませるチャンクの数。Gemini は1分あたりの回数の上限が低く（10/28 に3並列＋検査の作り直しで 429）、
+ * 1本ずつ順に読ませる。OpenAI・Azure は従来どおり3。
+ */
+const TTS_PARALLELISM = Number(process.env.TTS_PARALLELISM ?? (process.env.TTS_PROVIDER === 'gemini' ? 1 : 3)) || 1;
 const SILENCE_INTRA_MS = 120; // チャンク間
 const SILENCE_PARAGRAPH_MS = 400; // 段落境界
-const MAX_ATTEMPTS = 3;
+/**
+ * 検査で不合格のときに作り直す上限と、全部だめなときに文を半分に割って作り直すか。
+ * 既定は 3 回・割る。F（Gemini）は「1日100回まで」の上限があり、しかも辞書で仮名にした語・仮名の年号・
+ * 「シンヤ」を聞き取りが漢字で書くだけの見かけの不合格が多い（10/28 のオープニングで8区切り中4つ）ので、
+ * TTS_MAX_ATTEMPTS=2・TTS_SUBDIVIDE=false で回数を抑え、読みの最終確認は gpt-4o での聞き直しで行う。
+ */
+const MAX_ATTEMPTS = Number(process.env.TTS_MAX_ATTEMPTS ?? 3) || 3;
+const SUBDIVIDE_ON_FAILURE = (process.env.TTS_SUBDIVIDE ?? 'true').toLowerCase() !== 'false';
 
 /**
  * TTSプロバイダ設定。環境変数で切り替え可能。
@@ -231,7 +242,7 @@ async function ttsChunksInParallel(
     if (!best) throw new Error(`chunk ${chunk.index}: no attempt completed`);
 
     // 最終フォールバック: 全試行失敗かつ depth=0 なら、テキストを2分割して再帰
-    if (!best.verify.ok && depth === 0) {
+    if (!best.verify.ok && depth === 0 && SUBDIVIDE_ON_FAILURE) {
       const parts = subdivideChunkText(chunk.text);
       if (parts.length === 2) {
         console.warn(
@@ -370,7 +381,28 @@ function estimateAudioSeconds(mp3: Buffer): number {
 
 /** Gemini が一時的に断ったとき（回数の上限・混雑）にだけ、間を空けて呼び直す回数 */
 const GEMINI_RETRY_STATUSES = new Set([429, 500, 503]);
-const GEMINI_MAX_TRIES = 4;
+const GEMINI_MAX_TRIES = 6;
+
+type GeminiErrorDetail = {
+  '@type'?: string;
+  retryDelay?: string;
+  violations?: { quotaMetric?: string; quotaId?: string; quotaValue?: string }[];
+};
+
+/**
+ * 429 の中身を読む。Google は「どの上限か（quotaId に FreeTier が付くか・1分か1日か）」と
+ * 「何秒待てばよいか（RetryInfo.retryDelay）」を details に入れて返す。
+ * 1日の上限は待っても戻らないので、呼び直さずに止める。
+ */
+function readGeminiQuotaError(error: unknown): { waitMs: number | null; quota: string; daily: boolean } {
+  const details = ((error as { details?: GeminiErrorDetail[] })?.details ?? []) as GeminiErrorDetail[];
+  const violations = details.flatMap((d) => d.violations ?? []);
+  const quota = violations.map((v) => `${v.quotaId ?? v.quotaMetric ?? '?'}=${v.quotaValue ?? '?'}`).join(', ');
+  const daily = violations.some((v) => /PerDay/i.test(v.quotaId ?? ''));
+  const delay = details.find((d) => d.retryDelay)?.retryDelay;
+  const sec = delay ? Number(delay.replace(/s$/, '')) : NaN;
+  return { waitMs: Number.isFinite(sec) ? Math.ceil(sec * 1000) + 1000 : null, quota, daily };
+}
 
 /**
  * Gemini 3.8 Flash TTS（新しい声 F）で1チャンクを読む。
@@ -405,11 +437,15 @@ async function ttsSingleGemini(text: string, generationId?: number | string | nu
     );
     json = await res.json().catch(() => ({}));
     if (res.ok) break;
-    if (!GEMINI_RETRY_STATUSES.has(res.status) || attempt >= GEMINI_MAX_TRIES) {
-      throw new Error(`Gemini TTS ${res.status}: ${JSON.stringify(json.error ?? json).slice(0, 300)}`);
+    const q = res.status === 429 ? readGeminiQuotaError(json.error) : null;
+    if (!GEMINI_RETRY_STATUSES.has(res.status) || attempt >= GEMINI_MAX_TRIES || q?.daily) {
+      const head = (json.error as { message?: string })?.message?.split('\n')[0] ?? JSON.stringify(json).slice(0, 200);
+      throw new Error(`Gemini TTS ${res.status}: ${head}${q ? `（上限: ${q.quota || '不明'}${q.daily ? '・1日の上限' : ''}）` : ''}`);
     }
-    const waitMs = 2000 * 2 ** (attempt - 1);
-    console.warn(`[TTS gemini] ${res.status} → ${waitMs}ms 待って呼び直す（${attempt}/${GEMINI_MAX_TRIES}）`);
+    const waitMs = q?.waitMs ?? 5000 * 2 ** (attempt - 1);
+    console.warn(
+      `[TTS gemini] ${res.status}${q ? `（${q.quota}）` : ''} → ${waitMs}ms 待って呼び直す（${attempt}/${GEMINI_MAX_TRIES}）`,
+    );
     await new Promise((r) => setTimeout(r, waitMs));
   }
 
