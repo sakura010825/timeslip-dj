@@ -14,6 +14,7 @@ import OpenAI from 'openai';
 import { splitIntoChunks, subdivideChunkText, type Chunk } from './tts-chunker';
 import { verifyChunkAudio, type VerifyResult } from './tts-verifier';
 import { logApiUsage } from './usage-log';
+import { TTS_BITRATE_KBPS, estimateMp3Seconds } from './tts-audio-format';
 
 const openai = new OpenAI();
 
@@ -31,8 +32,10 @@ const MAX_ATTEMPTS = 3;
  *
  * - 既定: TTS_PROVIDER=azure（Naoki 採用）
  * - 旧モデル比較: TTS_PROVIDER=openai
+ * - 新しい声 F: TTS_PROVIDER=gemini（2026-10-28 hide 決定。OpenAI の今の声は 2027-01-06 に終わる。
+ *   聴き比べ＝redial docs/VOICE_COMPARISON_2026-10.md。新しい回は TTS_BITRATE_KBPS=64 で書き出す）
  */
-export const TTS_PROVIDER = (process.env.TTS_PROVIDER ?? 'azure') as 'azure' | 'openai';
+export const TTS_PROVIDER = (process.env.TTS_PROVIDER ?? 'azure') as 'azure' | 'openai' | 'gemini';
 
 // OpenAI 設定（TTS_PROVIDER=openai のとき使用）
 export const TTS_MODEL = process.env.TTS_MODEL ?? 'tts-1-hd';
@@ -44,9 +47,21 @@ export const AZURE_SPEECH_KEY = process.env.AZURE_SPEECH_KEY;
 export const AZURE_SPEECH_REGION = process.env.AZURE_SPEECH_REGION ?? 'japaneast';
 export const AZURE_SPEECH_VOICE = process.env.AZURE_SPEECH_VOICE ?? 'ja-JP-NaokiNeural';
 
+// Gemini 設定（TTS_PROVIDER=gemini のとき使用）。
+// 聴き比べ（10/16）と同じ呼び方＝読む文は text にそのまま、話し方は同じ part の speech_metadata.style。
+// 本文の前に指示を書く形は指示まで読み上げられうると公式が注意しているので使わない。
+export const GEMINI_TTS_MODEL = process.env.TTS_GEMINI_MODEL ?? 'gemini-3.8-flash-tts';
+export const GEMINI_TTS_VOICE = process.env.TTS_GEMINI_VOICE ?? 'Charon';
+/** 話し方（本番の TTS_INSTRUCTIONS を短くしたもの。長い style は声がぶれる原因になると公式の注意） */
+export const GEMINI_TTS_STYLE =
+  process.env.TTS_GEMINI_STYLE ??
+  'A middle-aged Japanese male late-night radio DJ. Deep, mellow, warm, intimate close-mic delivery. ' +
+    'Slow and unhurried, with thoughtful pauses between sentences. Slightly nostalgic. Never bright or energetic.';
+const GOOGLE_API_KEY = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+
 // Whisper検証の有効/無効。Azure は安定しているのでデフォルト false。
-// openai 使用時は true（不安定なのでリトライが効く）。
-const VERIFY_DEFAULT = TTS_PROVIDER === 'openai';
+// openai・gemini 使用時は true（同じ文でも回ごとに崩れる所が変わる＝聴き比べで確認済み。リトライが効く）。
+const VERIFY_DEFAULT = TTS_PROVIDER !== 'azure';
 export const TTS_VERIFY = process.env.TTS_VERIFY
   ? process.env.TTS_VERIFY.toLowerCase() === 'true'
   : VERIFY_DEFAULT;
@@ -55,13 +70,20 @@ console.log(
   `[TTS config] provider=${TTS_PROVIDER} ` +
     (TTS_PROVIDER === 'azure'
       ? `voice=${AZURE_SPEECH_VOICE} region=${AZURE_SPEECH_REGION}`
-      : `model=${TTS_MODEL} voice=${TTS_VOICE}`) +
-    ` verify=${TTS_VERIFY}`,
+      : TTS_PROVIDER === 'gemini'
+        ? `model=${GEMINI_TTS_MODEL} voice=${GEMINI_TTS_VOICE}`
+        : `model=${TTS_MODEL} voice=${TTS_VOICE}`) +
+    ` verify=${TTS_VERIFY} bitrate=${TTS_BITRATE_KBPS}k`,
 );
 
 if (TTS_PROVIDER === 'azure' && !AZURE_SPEECH_KEY) {
   console.warn(
     '[TTS config] AZURE_SPEECH_KEY が未設定です。/api/tts 呼び出し時にエラーになります。',
+  );
+}
+if (TTS_PROVIDER === 'gemini' && !GOOGLE_API_KEY) {
+  console.warn(
+    '[TTS config] GOOGLE_GENERATIVE_AI_API_KEY が未設定です。/api/tts 呼び出し時にエラーになります。',
   );
 }
 
@@ -335,12 +357,113 @@ async function ttsSingle(text: string, generationId?: number | string | null): P
   if (TTS_PROVIDER === 'azure') {
     return ttsSingleAzure(text, generationId);
   }
+  if (TTS_PROVIDER === 'gemini') {
+    return ttsSingleGemini(text, generationId);
+  }
   return ttsSingleOpenAI(text, generationId);
 }
 
-/** mp3バイト数から秒数を概算する（128kbps mono 前提。tts-verifier.ts / archive route.ts と同じ既存の慣例値）。 */
+/** OpenAI の音声（128kbps 前後で返る）の秒数の概算。費用の記録だけに使う（tts-audio-format の慣例値） */
 function estimateAudioSeconds(mp3: Buffer): number {
-  return +(mp3.length / 16384).toFixed(1);
+  return estimateMp3Seconds(mp3.length, 128);
+}
+
+/** Gemini が一時的に断ったとき（回数の上限・混雑）にだけ、間を空けて呼び直す回数 */
+const GEMINI_RETRY_STATUSES = new Set([429, 500, 503]);
+const GEMINI_MAX_TRIES = 4;
+
+/**
+ * Gemini 3.8 Flash TTS（新しい声 F）で1チャンクを読む。
+ * 返ってくるのは WAV（頭つき）か生の PCM（audio/L16;rate=24000）なので、ここで
+ * TTS_BITRATE_KBPS の mp3（24kHz・モノラル）にしてから返す＝後ろの検査・結合は他の声と同じ道を通る。
+ */
+async function ttsSingleGemini(text: string, generationId?: number | string | null): Promise<Buffer> {
+  if (!GOOGLE_API_KEY) {
+    throw new Error('GOOGLE_GENERATIVE_AI_API_KEY is not set');
+  }
+  const voiceConfig = /^[a-z]{2}-[a-z]{2}-/.test(GEMINI_TTS_VOICE)
+    ? { voice: GEMINI_TTS_VOICE } // 日本語専用の声（ja-jp-…）
+    : { prebuiltVoiceConfig: { voiceName: GEMINI_TTS_VOICE } }; // 世界共通の声（Charon など）
+  const body = JSON.stringify({
+    contents: [{ role: 'user', parts: [{ text, speech_metadata: { style: GEMINI_TTS_STYLE } }] }],
+    generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig } },
+  });
+
+  let json: {
+    candidates?: { content?: { parts?: { inlineData?: { data: string; mimeType: string } }[] } }[];
+    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
+    error?: unknown;
+  } = {};
+  for (let attempt = 1; ; attempt++) {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TTS_MODEL}:generateContent`,
+      {
+        method: 'POST',
+        headers: { 'x-goog-api-key': GOOGLE_API_KEY, 'Content-Type': 'application/json' },
+        body,
+      },
+    );
+    json = await res.json().catch(() => ({}));
+    if (res.ok) break;
+    if (!GEMINI_RETRY_STATUSES.has(res.status) || attempt >= GEMINI_MAX_TRIES) {
+      throw new Error(`Gemini TTS ${res.status}: ${JSON.stringify(json.error ?? json).slice(0, 300)}`);
+    }
+    const waitMs = 2000 * 2 ** (attempt - 1);
+    console.warn(`[TTS gemini] ${res.status} → ${waitMs}ms 待って呼び直す（${attempt}/${GEMINI_MAX_TRIES}）`);
+    await new Promise((r) => setTimeout(r, waitMs));
+  }
+
+  const audio = json.candidates?.[0]?.content?.parts?.find((p) => p.inlineData)?.inlineData;
+  if (!audio) {
+    throw new Error(`Gemini TTS: 音声が返らなかった ${JSON.stringify(json).slice(0, 300)}`);
+  }
+  const raw = Buffer.from(audio.data, 'base64');
+  const mp3 = await audioToMp3(raw, audio.mimeType);
+
+  void logApiUsage({
+    provider: 'google',
+    model: GEMINI_TTS_MODEL,
+    purpose: 'tts',
+    units: {
+      tts_chars: text.length,
+      input_tokens: json.usageMetadata?.promptTokenCount,
+      output_tokens: json.usageMetadata?.candidatesTokenCount,
+      audio_seconds: estimateMp3Seconds(mp3.length),
+    },
+    generationId,
+  });
+
+  return mp3;
+}
+
+/** WAV（RIFF の頭つき）か生の PCM（s16le）を、TTS_BITRATE_KBPS の mp3 にする */
+async function audioToMp3(raw: Buffer, mimeType: string): Promise<Buffer> {
+  const tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'tts-gemini-'));
+  try {
+    const isWav = raw.subarray(0, 4).toString('latin1') === 'RIFF';
+    const inPath = path.join(tmpDir, isWav ? 'in.wav' : 'in.pcm');
+    const outPath = path.join(tmpDir, 'out.mp3');
+    await fsp.writeFile(inPath, raw);
+    const rate = Number((mimeType.match(/rate=(\d+)/) ?? [])[1] ?? 24000);
+    await runFfmpeg([
+      '-y',
+      ...(isWav ? [] : ['-f', 's16le', '-ar', String(rate), '-ac', '1']),
+      '-i',
+      inPath,
+      '-c:a',
+      'libmp3lame',
+      '-b:a',
+      `${TTS_BITRATE_KBPS}k`,
+      '-ar',
+      '24000',
+      '-ac',
+      '1',
+      outPath,
+    ]);
+    return await fsp.readFile(outPath);
+  } finally {
+    fsp.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+  }
 }
 
 async function ttsSingleOpenAI(text: string, generationId?: number | string | null): Promise<Buffer> {
@@ -479,7 +602,7 @@ async function concatMp3s(tmpDir: string, chunks: GeneratedChunk[]): Promise<Buf
     '-c:a',
     'libmp3lame',
     '-b:a',
-    '128k',
+    `${TTS_BITRATE_KBPS}k`,
     '-ar',
     '24000',
     '-ac',
@@ -517,7 +640,7 @@ async function concatBufferList(buffers: Buffer[]): Promise<Buffer> {
       '-c:a',
       'libmp3lame',
       '-b:a',
-      '128k',
+      `${TTS_BITRATE_KBPS}k`,
       '-ar',
       '24000',
       '-ac',
@@ -542,7 +665,7 @@ async function generateSilenceMp3(outPath: string, ms: number): Promise<void> {
     '-c:a',
     'libmp3lame',
     '-b:a',
-    '128k',
+    `${TTS_BITRATE_KBPS}k`,
     outPath,
   ]);
 }

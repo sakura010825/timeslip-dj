@@ -15,7 +15,7 @@
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-export type UsageProvider = 'anthropic' | 'openai' | 'azure';
+export type UsageProvider = 'anthropic' | 'openai' | 'azure' | 'google';
 
 /** 'topic_select' は topic-selector.ts が API を呼ばない（純ローカルの重み付き抽選）ため未使用。 */
 export type UsagePurpose = 'script' | 'grounding_verify' | 'tts' | 'whisper_verify';
@@ -74,10 +74,23 @@ export const PRICING: Record<string, PricingEntry> = {
   // 入力テキスト分（$0.60/1M tok）は含まれないが金額比で軽微。あくまで概算である旨は units 併記で担保。
   // 出典: https://developers.openai.com/api/docs/models/gpt-4o-mini-tts（"approximately $0.015 per minute"・WebSearch確認 2026-07-21）
   'gpt-4o-mini-tts': { kind: 'minutes', perMinute: 0.015 },
+
+  // --- Google Gemini 3.8 Flash TTS（新しい声 F・2026-10-28 採用。TTS_PROVIDER=gemini） ---
+  // 応答の usageMetadata にトークン数が返る（入力＝文字のトークン・出力＝音声のトークン＝1秒25トークン）ので実数で計算する。
+  // 出典: https://cloud.google.com/text-to-speech/pricing ・ https://ai.google.dev/gemini-api/docs/pricing （WebSearch確認 2026-10-28）
+  //   2026-12-31 まで: 入力 $0.50 / 1M tokens・出力（音声）$9.00 / 1M tokens
+  //   2027-01-01 から: 入力 $1.00・出力 $18.00（倍）＝ lookupPricing が日付で倍にする
+  'gemini-3.8-flash-tts': { kind: 'tokens', inputPerMTok: 0.5, outputPerMTok: 9.0 },
 };
+
+/** Gemini TTS の単価が倍になる日。常駐のワーカーは年をまたいで動き続けるので、記録のたびに日付で判定する */
+const GEMINI_TTS_PRICE_UP_AT = Date.UTC(2027, 0, 1);
 
 /** 完全一致優先、無ければ日付サフィックス付きモデル名（例: gpt-4o-mini-tts-2025-12-15）等をプレフィックス一致で拾う。 */
 function lookupPricing(model: string): PricingEntry | undefined {
+  if (model.startsWith('gemini-3.8-flash-tts') && Date.now() >= GEMINI_TTS_PRICE_UP_AT) {
+    return { kind: 'tokens', inputPerMTok: 1.0, outputPerMTok: 18.0 };
+  }
   if (PRICING[model]) return PRICING[model];
   const prefixMatch = Object.keys(PRICING)
     .sort((a, b) => b.length - a.length)

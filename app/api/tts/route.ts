@@ -11,7 +11,11 @@ import {
   AZURE_SPEECH_VOICE,
   AZURE_SPEECH_REGION,
   TTS_VERIFY,
+  GEMINI_TTS_MODEL,
+  GEMINI_TTS_VOICE,
+  GEMINI_TTS_STYLE,
 } from '@/lib/tts-pipeline';
+import { TTS_BITRATE_KBPS, estimateMp3Seconds } from '@/lib/tts-audio-format';
 
 const ARCHIVE_ROOT = path.resolve(process.cwd(), '.tts-archive');
 
@@ -98,18 +102,27 @@ function saveArchive(a: ArchiveInput) {
             region: AZURE_SPEECH_REGION,
             verify: TTS_VERIFY,
           }
-        : {
-            provider: 'openai',
-            model: TTS_MODEL,
-            voice: TTS_VOICE,
-            instructions: TTS_INSTRUCTIONS ?? null,
-            verify: TTS_VERIFY,
-          },
+        : TTS_PROVIDER === 'gemini'
+          ? {
+              provider: 'gemini',
+              model: GEMINI_TTS_MODEL,
+              voice: GEMINI_TTS_VOICE,
+              style: GEMINI_TTS_STYLE,
+              verify: TTS_VERIFY,
+            }
+          : {
+              provider: 'openai',
+              model: TTS_MODEL,
+              voice: TTS_VOICE,
+              instructions: TTS_INSTRUCTIONS ?? null,
+              verify: TTS_VERIFY,
+            },
+      bitrateKbps: TTS_BITRATE_KBPS,
       rawLength: a.rawText.length,
       cleanLength: a.cleanText.length,
       outputBytes: a.finalMp3.length,
       bytesPerChar: +(a.finalMp3.length / Math.max(1, a.cleanText.length)).toFixed(1),
-      estimatedDurationSec: +(a.finalMp3.length / 16384).toFixed(1),
+      estimatedDurationSec: estimateMp3Seconds(a.finalMp3.length),
       pipelineMs: a.pipelineMs,
       chunkCount: a.chunks.length,
       totalChunkAttempts: a.chunks.reduce((s, c) => s + c.attempts, 0),

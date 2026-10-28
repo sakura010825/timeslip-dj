@@ -22,12 +22,16 @@
 import OpenAI from 'openai';
 import { toFile } from 'openai/uploads';
 import { logApiUsage } from './usage-log';
+import { estimateMp3Seconds } from './tts-audio-format';
 
 const openai = new OpenAI();
 
-/** mp3バイト数から秒数を概算する。128kbps mono 前提（tts-pipeline.ts/route.ts と同じ既存の慣例値）。 */
+/**
+ * mp3バイト数から秒数を概算する。検査に渡るのはチャンク単体の mp3＝作った声の形式のまま
+ * （OpenAI は 128kbps 前後・Gemini は TTS_BITRATE_KBPS で書き出す）。概算なので費用の記録にしか使わない。
+ */
 function estimateAudioSeconds(mp3: Buffer): number {
-  return +(mp3.length / 16384).toFixed(1);
+  return estimateMp3Seconds(mp3.length);
 }
 
 const GAP_THRESHOLD = 5;

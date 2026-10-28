@@ -12,6 +12,7 @@ import { NextResponse } from 'next/server';
 import { promises as fsp } from 'fs';
 import path from 'path';
 import { sanitizeForTTS } from '@/lib/tts-sanitize';
+import { estimateMp3Seconds } from '@/lib/tts-audio-format';
 import {
   generateSingleChunkMp3,
   concatChunksToMp3,
@@ -19,6 +20,8 @@ import {
   TTS_MODEL,
   TTS_VOICE,
   AZURE_SPEECH_VOICE,
+  GEMINI_TTS_MODEL,
+  GEMINI_TTS_VOICE,
 } from '@/lib/tts-pipeline';
 
 const ARCHIVE_ROOT = path.resolve(process.cwd(), '.tts-archive');
@@ -125,7 +128,7 @@ export async function POST(req: Request) {
 
     // meta の集約値も更新
     meta.outputBytes = newOutput.length;
-    meta.estimatedDurationSec = +(newOutput.length / 16384).toFixed(1);
+    meta.estimatedDurationSec = estimateMp3Seconds(newOutput.length);
     (meta as Record<string, unknown>).lastEditAt = new Date().toISOString();
     (meta as Record<string, unknown>).lastEdit = {
       chunkIndex,
@@ -133,7 +136,9 @@ export async function POST(req: Request) {
       provider: TTS_PROVIDER,
       ...(TTS_PROVIDER === 'azure'
         ? { voice: AZURE_SPEECH_VOICE }
-        : { model: TTS_MODEL, voice: TTS_VOICE }),
+        : TTS_PROVIDER === 'gemini'
+          ? { model: GEMINI_TTS_MODEL, voice: GEMINI_TTS_VOICE }
+          : { model: TTS_MODEL, voice: TTS_VOICE }),
       sanitizeWarnings,
     };
 
