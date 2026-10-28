@@ -390,6 +390,9 @@ export const PRONUNCIATION_DICT: PronunciationEntry[] = [
   { pattern: '賢所', replacement: 'かしこどころ', note: '宮中三殿の賢所。「けんしょ」と誤読（1990夏 seg1・2026-10-05）' },
   { pattern: '礼宮', replacement: 'あやのみや', note: '単独表記の保険。「れいみや」と誤読（1990夏 seg1・2026-10-05）' },
   { pattern: '文仁親王', replacement: 'ふみひと・しんのう', note: '単独表記の保険。「ふみにん…」と誤読（1990夏 seg1・2026-10-05）' },
+  // 2026-10-28 1985夏 seg1（声 F＝Gemini Charon）で確認された誤読。gpt-4o-transcribe・whisper-1・4o-mini とひらがな書きで確認
+  { pattern: /桑田真澄(?![一-龠々])/g, replacement: 'くわた・ますみ', note: '「くわたまさみ」と誤読（1985夏 seg1・2026-10-28）' },
+  { pattern: /毛利衛(?![一-龠々])/g, replacement: 'もうり・まもる', note: '「もうりまこと」と誤読（1985夏 seg1・2026-10-28）' },
 ];
 
 /**
