@@ -393,6 +393,19 @@ export const PRONUNCIATION_DICT: PronunciationEntry[] = [
   // 2026-10-28 1985夏 seg1（声 F＝Gemini Charon）で確認された誤読。gpt-4o-transcribe・whisper-1・4o-mini とひらがな書きで確認
   { pattern: /桑田真澄(?![一-龠々])/g, replacement: 'くわた・ますみ', note: '「くわたまさみ」と誤読（1985夏 seg1・2026-10-28）' },
   { pattern: /毛利衛(?![一-龠々])/g, replacement: 'もうり・まもる', note: '「もうりまこと」と誤読（1985夏 seg1・2026-10-28）' },
+  // 2026-10-29 1985秋: 声 F は人名を読み違える（上の3件）ので、台本の人名と難読語を読ませる前に塞ぐ
+  { pattern: /吉田義男(?![一-龠々])/g, replacement: 'よしだ・よしお', note: '1985秋の台本（阪神の監督）・先に塞ぐ' },
+  { pattern: /水野晴郎(?![一-龠々])/g, replacement: 'みずの・はるお', note: '1985秋の台本（金曜ロードショーの解説）・先に塞ぐ' },
+  { pattern: /原田知世(?![一-龠々])/g, replacement: 'はらだ・ともよ', note: '1985秋の台本・先に塞ぐ' },
+  { pattern: /澤井信一郎(?![一-龠々])/g, replacement: 'さわい・しんいちろう', note: '1985秋の台本（早春物語の監督）・先に塞ぐ' },
+  { pattern: /赤川次郎(?![一-龠々])/g, replacement: 'あかがわ・じろう', note: '1985秋の台本・先に塞ぐ' },
+  { pattern: /今井美樹(?![一-龠々])/g, replacement: 'いまい・みき', note: '1985秋の台本（ホンダ トゥデイのCM）・先に塞ぐ' },
+  { pattern: '来生たかお', replacement: 'きすぎ・たかお', note: '1985秋の台本（はぐれそうな天使）・「らいせい」等の誤読を先に塞ぐ' },
+  { pattern: /小林明子(?![一-龠々])/g, replacement: 'こばやし・あきこ', note: '1985秋の台本（恋におちて）・先に塞ぐ' },
+  { pattern: 'コスモ星丸', replacement: 'コスモほしまる', note: '科学万博のマスコット・1985秋の台本・先に塞ぐ' },
+  { pattern: '碧い瞳のエリス', replacement: 'あおいひとみのエリス', note: '安全地帯の曲名（KB の読み）・「へきい」等を先に塞ぐ' },
+  { pattern: '早春物語', replacement: 'そうしゅんものがたり', note: '原田知世の主演映画・1985秋の台本・先に塞ぐ' },
+  { pattern: '三国峠', replacement: 'みくにとうげ', note: '国道17号の峠・1985秋の台本・先に塞ぐ' },
   { pattern: /神田正輝(?![一-龠々])/g, replacement: 'かんだ・まさき', note: '「かんだまさてる」と誤読（1985夏 seg0・2026-10-29 hide 試聴で発見。聞き取り3種はいずれも漢字で書き、読み違いが見えなかった）' },
 ];
 
