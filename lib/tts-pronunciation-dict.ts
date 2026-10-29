@@ -393,6 +393,7 @@ export const PRONUNCIATION_DICT: PronunciationEntry[] = [
   // 2026-10-28 1985夏 seg1（声 F＝Gemini Charon）で確認された誤読。gpt-4o-transcribe・whisper-1・4o-mini とひらがな書きで確認
   { pattern: /桑田真澄(?![一-龠々])/g, replacement: 'くわた・ますみ', note: '「くわたまさみ」と誤読（1985夏 seg1・2026-10-28）' },
   { pattern: /毛利衛(?![一-龠々])/g, replacement: 'もうり・まもる', note: '「もうりまこと」と誤読（1985夏 seg1・2026-10-28）' },
+  { pattern: /神田正輝(?![一-龠々])/g, replacement: 'かんだ・まさき', note: '「かんだまさてる」と誤読（1985夏 seg0・2026-10-29 hide 試聴で発見。聞き取り3種はいずれも漢字で書き、読み違いが見えなかった）' },
 ];
 
 /**
