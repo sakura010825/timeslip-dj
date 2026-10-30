@@ -218,6 +218,7 @@ export const PRONUNCIATION_DICT: PronunciationEntry[] = [
   // 2026-09-17 公開25セルの知識ベースにある人名の読みを先回りで登録（オンデマンド生成は人の聞き直しが無い）。
   // 抽出＝KB 25ファイル全件→読み誤りやすい候補を、Wikipedia／コトバンク／公式プロフィールで1件ずつ裏取り。
   // 直後に漢字が続くときは置き換えない（「岡田弘子」の中の「岡田弘」等を誤って置き換えないため）。
+  // ただし「監督」「主演」のような肩書き・役目の語が続くときは置き換える（NAME_SUFFIXES・2026-10-30〜）。
   { pattern: /鹿賀丈史(?![一-龠々])/g, replacement: 'かが・たけし', note: 'KB人名・9/17一括（Wikipedia/コトバンクで確認）' },
   { pattern: /三重野康(?![一-龠々])/g, replacement: 'みえの・やすし', note: 'KB人名・9/17一括（Wikipedia/コトバンクで確認）' },
   { pattern: /中尊寺ゆつこ(?![一-龠々])/g, replacement: 'ちゅうそんじ・ゆつこ', note: 'KB人名・9/17一括（Wikipedia/コトバンクで確認）' },
@@ -419,6 +420,37 @@ export const PRONUNCIATION_DICT: PronunciationEntry[] = [
   { pattern: /浜崎あゆみ(?![一-龠々])/g, replacement: 'はまさき・あゆみ', note: '「はまざき」に聞こえる（1995秋 seg1）・2026-10-30 公開中の番組の聞き直しで、今の声が読み違えていた（新しい声で読ませる前に塞ぐ）' },
   { pattern: /大塚寧々(?![一-龠々])/g, replacement: 'おおつか・ねね', note: '「おおつか・ねーね」に聞こえる（1995夏 seg2）・2026-10-30 公開中の番組の聞き直しで、今の声が読み違えていた（新しい声で読ませる前に塞ぐ）' },
 ];
+
+/**
+ * 人名の直後に続いても「同じ人の名前」として置き換えてよい漢字の語。
+ *
+ * 人名の項目は (?![一-龠々]) で「直後に漢字が続くときは置き換えない」としている（長い別の名前の一部を
+ * 誤って置き換えないため）。その書き方だと「周防正行監督」「山崎貴監督」「堤真一演じる」も置き換わらず、
+ * 漢字のまま TTS に渡っていた（2026-10-30 公開中の番組の聞き直しで発見）。ここに挙げた語が続くときだけ
+ * 置き換える。候補＝台本と知識ベースで辞書の人名の直後に実際に続いていた語（監督34・主演22 ほか）。
+ * 名前の続きになりうる字（子・郎・光 など）は入れない。
+ */
+const NAME_SUFFIXES = [
+  '監督', '主演', '出演', '共演', '演じ', '演出', '脚本', '原作', '原案', '作詞', '作曲', '編曲', '監修', '製作', '制作',
+  '作品', '自身', '自伝', '本人', '名義', '首相', '総裁', '日銀', '内閣', '体制', '時代', '選手', '投手', '捕手', '騎手',
+  '騎乗', '司会', '主宰', '夫妻', '親方', '横綱', '以外', '初', '対', '氏', '様', '君', '役', '版', '編', '訳', '著',
+];
+const KANJI_GUARD = '(?![一-龠々])';
+const KANJI_GUARD_ALLOWING_SUFFIXES = `(?!(?!${NAME_SUFFIXES.join('|')})[一-龠々])`;
+
+/** 人名の項目（末尾が KANJI_GUARD）の先読みを、NAME_SUFFIXES が続くときは通す形に組み替える */
+function allowNameSuffixes(pattern: string | RegExp): string | RegExp {
+  if (typeof pattern === 'string' || !pattern.source.endsWith(KANJI_GUARD)) return pattern;
+  return new RegExp(pattern.source.slice(0, -KANJI_GUARD.length) + KANJI_GUARD_ALLOWING_SUFFIXES, pattern.flags);
+}
+
+/** 当てる形（label は記録に出す元の書き方） */
+const COMPILED_DICT: (PronunciationEntry & { label: string })[] = PRONUNCIATION_DICT.map((entry) => ({
+  ...entry,
+  pattern: allowNameSuffixes(entry.pattern),
+  label: entry.pattern.toString(),
+}));
+
 /**
  * テキストに誤読辞書を適用する。
  * string パターンはリテラル置換、RegExp パターンは正規表現置換。
@@ -430,7 +462,7 @@ export function applyPronunciationDict(input: string): {
   let output = input;
   const applied: { pattern: string; count: number }[] = [];
 
-  for (const entry of PRONUNCIATION_DICT) {
+  for (const entry of COMPILED_DICT) {
     if (typeof entry.pattern === 'string') {
       const occurrences = countOccurrences(output, entry.pattern);
       if (occurrences > 0) {
@@ -443,7 +475,7 @@ export function applyPronunciationDict(input: string): {
       const count = matches ? matches.length : 0;
       if (count > 0) {
         output = output.replace(entry.pattern, entry.replacement);
-        applied.push({ pattern: entry.pattern.toString(), count });
+        applied.push({ pattern: entry.label, count });
       }
     }
   }
