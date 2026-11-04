@@ -493,6 +493,8 @@ export const PRONUNCIATION_DICT: PronunciationEntry[] = [
   { pattern: '入道雲', replacement: 'にゅうどうぐも', note: '1986夏の台本・先に塞ぐ' },
   { pattern: '週間一位', replacement: 'しゅうかんいちい', note: '1986夏の台本・先に塞ぐ' },
   { pattern: '第一回', replacement: 'だいいっかい', note: '1986夏の台本・先に塞ぐ' },
+  { pattern: 'エンディングの演出', replacement: 'エンディングのえんしゅつ', note: '「えんしつ」と聞こえた・1986夏の台本' },
+  { pattern: 'ベスト・キッド2', replacement: 'ベスト・キッド・ツー', note: '「きっとつー」と聞こえた・1986夏の台本' },
 ];
 
 /**
