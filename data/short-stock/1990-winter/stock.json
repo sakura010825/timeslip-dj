@@ -18,6 +18,14 @@
       "ttsModel": "gpt-4o-mini-tts-2025-12-15",
       "ttsVoice": "onyx",
       "generatedAt": "2026-10-26T08:22:45.358Z"
+    },
+    {
+      "segmentIndex": 12,
+      "segmentName": "new-lovestory",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-11-16T00:12:27.236Z"
     }
   ]
 }

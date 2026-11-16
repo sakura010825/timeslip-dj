@@ -18,6 +18,22 @@
       "ttsModel": "gpt-4o-mini-tts-2025-12-15",
       "ttsVoice": "onyx",
       "generatedAt": "2026-10-26T08:34:14.667Z"
+    },
+    {
+      "segmentIndex": 12,
+      "segmentName": "new-memai",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-11-16T00:17:11.813Z"
+    },
+    {
+      "segmentIndex": 13,
+      "segmentName": "new-cykas",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-11-16T00:25:16.282Z"
     }
   ]
 }

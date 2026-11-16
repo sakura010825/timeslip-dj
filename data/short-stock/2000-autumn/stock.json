@@ -18,6 +18,14 @@
       "ttsModel": "gpt-4o-mini-tts-2025-12-15",
       "ttsVoice": "onyx",
       "generatedAt": "2026-10-26T08:36:20.208Z"
+    },
+    {
+      "segmentIndex": 12,
+      "segmentName": "new-kanshakangeki",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-11-16T01:09:42.514Z"
     }
   ]
 }
