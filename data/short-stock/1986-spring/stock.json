@@ -42,6 +42,14 @@
       "ttsModel": "gpt-4o-mini-tts-2025-12-15",
       "ttsVoice": "onyx",
       "generatedAt": "2026-10-26T08:12:32.619Z"
+    },
+    {
+      "segmentIndex": 15,
+      "segmentName": "new-maison",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-11-24T00:56:44.878Z"
     }
   ]
 }

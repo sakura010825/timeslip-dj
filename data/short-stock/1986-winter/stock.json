@@ -18,6 +18,14 @@
       "ttsModel": "gpt-4o-mini-tts-2025-12-15",
       "ttsVoice": "onyx",
       "generatedAt": "2026-11-16T00:27:57.630Z"
+    },
+    {
+      "segmentIndex": 12,
+      "segmentName": "new-kakuzato",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-11-24T00:54:07.377Z"
     }
   ]
 }

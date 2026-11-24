@@ -34,6 +34,30 @@
       "ttsModel": "gpt-4o-mini-tts-2025-12-15",
       "ttsVoice": "onyx",
       "generatedAt": "2026-11-16T00:17:48.146Z"
+    },
+    {
+      "segmentIndex": 15,
+      "segmentName": "new-shiawaseni",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-11-24T00:59:21.425Z"
+    },
+    {
+      "segmentIndex": 16,
+      "segmentName": "new-sameside",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-11-24T00:59:57.383Z"
+    },
+    {
+      "segmentIndex": 17,
+      "segmentName": "new-ukiuki",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-11-24T00:53:23.580Z"
     }
   ]
 }

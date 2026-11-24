@@ -26,6 +26,22 @@
       "ttsModel": "gpt-4o-mini-tts-2025-12-15",
       "ttsVoice": "onyx",
       "generatedAt": "2026-11-16T00:12:27.236Z"
+    },
+    {
+      "segmentIndex": 13,
+      "segmentName": "new-kujukuri",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-11-24T01:06:14.640Z"
+    },
+    {
+      "segmentIndex": 14,
+      "segmentName": "new-eternalwind",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-11-24T00:58:41.791Z"
     }
   ]
 }

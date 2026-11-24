@@ -18,6 +18,14 @@
       "ttsModel": "gpt-4o-mini-tts-2025-12-15",
       "ttsVoice": "onyx",
       "generatedAt": "2026-10-21T00:06:11.000Z"
+    },
+    {
+      "segmentIndex": 12,
+      "segmentName": "new-hatarakuotoko",
+      "segmentLabel": "新作",
+      "ttsModel": "gpt-4o-mini-tts-2025-12-15",
+      "ttsVoice": "onyx",
+      "generatedAt": "2026-11-24T01:04:10.488Z"
     }
   ]
 }
